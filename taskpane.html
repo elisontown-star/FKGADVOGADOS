@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vshare</title>
+
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cfb@1.2.2/dist/cfb.min.js"></script>
+
+  <script src="config.js?v=4.9"></script>
+  <script src="taskpane.js?v=4.9" defer></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 13px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    #vs-header {
+      background: #16213e;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #2a3a5c;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .vs-logo { display: flex; align-items: center; gap: 10px; }
+    .vs-icon {
+      width: 32px; height: 32px;
+      background: #fff;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      padding: 3px;
+    }
+    .vs-title { font-size: 15px; font-weight: 600; color: #fff; }
+    .vs-subtitle { font-size: 11px; color: #8892a4; margin-top: 1px; }
+
+    #logoutBtn {
+      background: transparent;
+      border: 1px solid #2a3a5c;
+      color: #8892a4;
+      border-radius: 6px;
+      padding: 6px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: border-color .2s, color .2s;
+    }
+    #logoutBtn:hover { border-color: #e74c3c; color: #e74c3c; }
+
+    /* ── User bar ── */
+    #userBar {
+      background: #16213e;
+      padding: 8px 16px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #2a3a5c;
+    }
+    .vs-avatar {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: #0078d4;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; color: #fff; flex-shrink: 0;
+    }
+    #userName { font-size: 12px; color: #8892a4; }
+    #userName span { color: #e0e0e0; font-weight: 500; }
+    .lang-toggle { margin-left: auto; display: flex; gap: 3px; }
+    .lang-btn {
+      padding: 2px 7px; font-size: 10px; font-weight: 600;
+      border: 1px solid #2a3a5c; border-radius: 4px;
+      background: transparent; color: #8892a4; cursor: pointer;
+      transition: all .15s;
+    }
+    .lang-btn:hover { border-color: #0078d4; }
+    .lang-btn.active { background: #0078d4; color: #fff; border-color: #0078d4; }
+
+    /* ── Body ── */
+    #vs-body { padding: 14px 16px; flex: 1; }
+
+    /* ── Login ── */
+    #loginSection { display: block; }
+    .vs-login-msg {
+      font-size: 12px; color: #8892a4;
+      margin-bottom: 14px; line-height: 1.6;
+    }
+
+    /* ── Email preview ── */
+    #emailPreview {
+      background: #16213e;
+      border: 1px solid #2a3a5c;
+      border-left: 3px solid #0078d4;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+    .preview-label {
+      font-size: 10px; font-weight: 600;
+      color: #2196f3;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    #previewSubject {
+      font-size: 12px; color: #e0e0e0; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    #previewFrom { font-size: 11px; color: #8892a4; }
+
+    /* ── Labels e selects ── */
+    .vs-label {
+      font-size: 11px; font-weight: 600;
+      color: #8892a4;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .vs-select-wrap { position: relative; margin-bottom: 12px; }
+    select {
+      width: 100%;
+      padding: 8px 30px 8px 10px;
+      background: #16213e;
+      border: 1px solid #2a3a5c;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 13px;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    select:focus { outline: none; border-color: #0078d4; }
+    .vs-chevron {
+      position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%);
+      color: #8892a4; pointer-events: none; font-size: 14px;
+    }
+
+    /* ── Folder indicator ── */
+    #folderIndicator {
+      background: #16213e;
+      border: 1px solid #2a3a5c;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      transition: opacity .3s;
+    }
+    #folderIndicator .fi-icon { font-size: 16px; color: #0078d4; }
+    #folderPath { color: #8892a4; }
+    #folderPath span { color: #2196f3; font-weight: 500; }
+
+    /* ── Subpasta ── */
+    #subfolderSection { display: none; }
+
+    /* ── Botão arquivar ── */
+    #archiveBtn {
+      width: 100%;
+      padding: 11px;
+      background: #0078d4;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background .2s, transform .1s;
+      margin-top: 2px;
+    }
+    #archiveBtn:hover:not(:disabled) { background: #005a9e; }
+    #archiveBtn:active:not(:disabled) { transform: scale(0.98); }
+    #archiveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* ── Botão login ── */
+    #loginBtn {
+      width: 100%;
+      padding: 11px;
+      background: #0078d4;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background .2s;
+    }
+    #loginBtn:hover { background: #005a9e; }
+
+    /* ── Status ── */
+    #status {
+      margin-top: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: none;
+      line-height: 1.5;
+    }
+    #status.success { background: #0d2b1a; color: #1db954; border: 1px solid #1db954; }
+    #status.error   { background: #2b0d0d; color: #e74c3c; border: 1px solid #e74c3c; }
+    #status.loading { background: #1a2b3c; color: #2196f3; border: 1px solid #2196f3; }
+
+    /* ── Loader spinner ── */
+    .loader {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Folder section (hidden until login) ── */
+    #folderSection { display: none; }
+
+    /* ── Search bar ── */
+    .vs-search-wrap {
+      position: relative;
+      margin-bottom: 14px;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 8px 36px 8px 32px;
+      background: #fff;
+      border: 1px solid #0a2472;
+      border-radius: 2px;
+      color: #333;
+      font-size: 13px;
+      font-family: "Segoe UI", sans-serif;
+      transition: border-color .2s;
+    }
+    #searchInput:focus { outline: none; border-color: #0078d4; }
+    #searchInput::placeholder { color: #767676; }
+    .vs-search-icon {
+      position: absolute; left: 9px; top: 50%;
+      transform: translateY(-50%);
+      color: #605e5c; font-size: 14px; pointer-events: none;
+    }
+    #searchClear {
+      position: absolute; right: 8px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none; color: #605e5c;
+      cursor: pointer; font-size: 16px; padding: 2px 4px;
+      display: none; line-height: 1;
+      transition: color .2s;
+    }
+    #searchClear:hover { color: #000; }
+
+    /* ── Search results ── */
+    #searchResults {
+      display: none;
+      background: #16213e;
+      border: 1px solid #2a3a5c;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .sr-header {
+      padding: 6px 12px;
+      font-size: 10px; font-weight: 600;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid #2a3a5c;
+    }
+    .sr-item {
+      padding: 9px 12px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: background .15s;
+      border-bottom: 1px solid #1a2a3c;
+    }
+    .sr-item:last-child { border-bottom: none; }
+    .sr-item:hover { background: #0f2a3c; }
+    .sr-item.selected { background: #0d2340; border-left: 3px solid #0078d4; padding-left: 9px; }
+    .sr-name { font-size: 13px; color: #e0e0e0; }
+    .sr-path { font-size: 11px; color: #4a5568; margin-top: 1px; }
+    .sr-icon { font-size: 15px; color: #0078d4; flex-shrink: 0; }
+    .sr-empty {
+      padding: 14px 12px;
+      font-size: 12px; color: #4a5568;
+      text-align: center;
+    }
+    .sr-loading {
+      padding: 12px;
+      font-size: 12px; color: #2196f3;
+      text-align: center;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+  
+    /* ── Renomear ── */
+    .rename-block { margin-bottom: 14px; }
+    .rename-block input[type="text"] {
+      display: block; width: 100%;
+      padding: 8px 10px; background: #fff;
+      border: 1px solid #0a2472; border-radius: 2px;
+      color: #333; font-size: 13px;
+      font-family: "Segoe UI", sans-serif;
+      box-sizing: border-box;
+    }
+    .rename-block input[type="text"]:focus { outline: none; border-color: #0078d4; }
+    .rename-block input[type="text"]::placeholder { color: #999; font-size: 12px; }
+  
+    /* ── Botão e painel de criação ── */
+    #newCaseBtn {
+      width: 100%; padding: 9px;
+      background: transparent; color: #2196f3;
+      border: 1px dashed #2a4a6c; border-radius: 8px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-bottom: 14px; transition: all .2s;
+    }
+    #newCaseBtn:hover { background: #16213e; border-color: #0078d4; }
+    #createPanel {
+      display: none;
+      background: #16213e; border: 1px solid #2a3a5c;
+      border-radius: 8px; padding: 14px; margin-bottom: 14px;
+    }
+    .create-header {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 12px;
+    }
+    .create-close {
+      background: none; border: none; color: #8892a4;
+      cursor: pointer; font-size: 14px; padding: 2px 4px;
+    }
+    .create-close:hover { color: #e74c3c; }
+    .create-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+    .create-tab {
+      flex: 1; padding: 6px; font-size: 11px; font-weight: 600;
+      border: 1px solid #2a3a5c; border-radius: 6px;
+      background: transparent; color: #8892a4; cursor: pointer;
+    }
+    .create-tab.active { background: #0078d4; color: #fff; border-color: #0078d4; }
+    .create-input {
+      width: 100%; padding: 8px 10px; margin-bottom: 10px;
+      background: #1a1a2e; border: 1px solid #2a3a5c; border-radius: 6px;
+      color: #e0e0e0; font-size: 13px; box-sizing: border-box;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .create-input:focus { outline: none; border-color: #0078d4; }
+    #createConfirmBtn {
+      width: 100%; padding: 10px;
+      background: #107c10; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    #createConfirmBtn:hover { background: #0b5d0b; }
+    #createConfirmBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #createStatus {
+      margin-top: 10px; padding: 8px; border-radius: 6px;
+      font-size: 12px; display: none; line-height: 1.5;
+    }
+    #createStatus.success { background: #0d2b1a; color: #1db954; border: 1px solid #1db954; }
+    #createStatus.error   { background: #2b0d0d; color: #e74c3c; border: 1px solid #e74c3c; }
+    #createStatus.loading { background: #1a2b3c; color: #2196f3; border: 1px solid #2196f3; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="vs-header">
+    <div class="vs-logo">
+      <div class="vs-icon"><img src="icon-64.png?v=2.8" alt="Vshare" style="width:24px;height:24px;object-fit:contain;"/></div>
+      <div>
+        <div class="vs-title">Vshare</div>
+        <div class="vs-subtitle" data-i18n="subtitle">Arquivar no SharePoint</div>
+      </div>
+    </div>
+    <button id="logoutBtn" onclick="logout()" title="Sair da conta">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- User bar -->
+  <div id="userBar">
+    <div class="vs-avatar" id="userAvatar">?</div>
+    <div id="userName"><span id="userEmail">—</span></div>
+    <div class="lang-toggle">
+      <button type="button" class="lang-btn active" id="langPt" onclick="setLang('pt')">PT</button>
+      <button type="button" class="lang-btn" id="langEn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div id="vs-body">
+
+    <!-- Login -->
+    <div id="loginSection">
+      <p class="vs-login-msg">
+        <span data-i18n="loginMsg">Faça login com sua conta Microsoft para arquivar emails no SharePoint.</span>
+      </p>
+      <button id="loginBtn" onclick="login()">
+        <svg width="16" height="16" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+          <rect x="1"  y="1"  width="10" height="10" fill="#F25022"/>
+          <rect x="12" y="1"  width="10" height="10" fill="#7FBA00"/>
+          <rect x="1"  y="12" width="10" height="10" fill="#00A4EF"/>
+          <rect x="12" y="12" width="10" height="10" fill="#FFB900"/>
+        </svg>
+        <span data-i18n="loginBtn">Entrar com Microsoft</span>
+      </button>
+    </div>
+
+    <!-- Seletor de site/biblioteca -->
+    <div id="siteSection" style="display:none; margin-bottom:4px;">
+      <label class="vs-label" for="siteSelect" data-i18n="siteLabel">Biblioteca</label>
+      <div class="vs-select-wrap">
+        <select id="siteSelect" onchange="onSiteChange(this.value)">
+        </select>
+        <span class="vs-chevron">▾</span>
+      </div>
+    </div>
+
+    <!-- Pastas + arquivamento -->
+    <div id="folderSection">
+
+      <!-- Busca em tempo real -->
+      <div class="vs-search-wrap">
+        <span class="vs-search-icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#605e5c" stroke-width="1.5">
+            <circle cx="7" cy="7" r="5"/>
+            <line x1="11" y1="11" x2="14.5" y2="14.5"/>
+          </svg>
+        </span>
+        <input type="text" id="searchInput" placeholder="Buscar pasta..." data-i18n-ph="searchPh" oninput="onSearchInput(this.value)" autocomplete="off"/>
+        <button id="searchClear" onclick="clearSearch()" title="Limpar busca">✕</button>
+      </div>
+      <div id="searchResults"></div>
+
+      <button id="newCaseBtn" onclick="toggleCreatePanel()" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span data-i18n="newCase">Criar cliente / caso</span>
+      </button>
+
+      <!-- Painel de criação de cliente/caso -->
+      <div id="createPanel">
+        <div class="create-header">
+          <span data-i18n="createTitle">Criar estrutura</span>
+          <button class="create-close" onclick="toggleCreatePanel()" type="button">✕</button>
+        </div>
+
+        <div class="create-tabs">
+          <button class="create-tab active" id="tabNewClient" onclick="setCreateMode('client')" type="button" data-i18n="newClient">Novo cliente</button>
+          <button class="create-tab" id="tabNewCase" onclick="setCreateMode('case')" type="button" data-i18n="newCaseTab">Novo caso</button>
+        </div>
+
+        <!-- Modo: Novo cliente -->
+        <div id="modeClient">
+          <label class="vs-label" data-i18n="clientNumber">Número do cliente</label>
+          <input type="text" id="clientNumber" class="create-input" placeholder="Ex: 1912" autocomplete="off"/>
+          <label class="vs-label" data-i18n="clientName">Nome do cliente</label>
+          <input type="text" id="clientName" class="create-input" placeholder="Ex: Palmeiras" autocomplete="off"/>
+          <label class="vs-label" data-i18n="caseQty">Quantidade de casos</label>
+          <input type="number" id="caseQty" class="create-input" value="1" min="1" max="50"/>
+        </div>
+
+        <!-- Modo: Novo caso (cliente existente) -->
+        <div id="modeCase" style="display:none;">
+          <label class="vs-label" data-i18n="selectClient">Cliente</label>
+          <div class="vs-select-wrap">
+            <select id="existingClient" class="create-input"><option value="">Carregando...</option></select>
+            <span class="vs-chevron">▾</span>
+          </div>
+          <label class="vs-label" data-i18n="howManyCases">Quantos casos adicionar</label>
+          <input type="number" id="addCaseQty" class="create-input" value="1" min="1" max="50"/>
+        </div>
+
+        <button id="createConfirmBtn" onclick="confirmCreate()" type="button" data-i18n="createBtn">Criar</button>
+        <div id="createStatus"></div>
+      </div>
+
+      <div id="normalFolderUI">
+      <div id="emailPreview">
+        <div class="preview-label" data-i18n="emailSelected">Email selecionado</div>
+        <div id="previewSubject">—</div>
+        <div id="previewFrom">—</div>
+      </div>
+
+      <label class="vs-label" for="rootFolder" data-i18n="rootFolder">Pasta principal</label>
+      <div class="vs-select-wrap">
+        <select id="rootFolder" onchange="onRootFolderChange(this.value)">
+          <option value="">Carregando...</option>
+        </select>
+        <span class="vs-chevron">▾</span>
+      </div>
+
+      <div id="subfolderSection">
+        <label class="vs-label" for="subFolder" data-i18n="subFolder">Subpasta</label>
+        <div class="vs-select-wrap">
+          <select id="subFolder" onchange="onSubFolderChange(this.value)">
+            <option value="">— raiz da pasta acima —</option>
+          </select>
+          <span class="vs-chevron">▾</span>
+        </div>
+      </div>
+
+      <div id="subSubfolderSection" style="display:none;">
+        <label class="vs-label" for="subSubFolder" data-i18n="subSubFolder">Sub-subpasta</label>
+        <div class="vs-select-wrap">
+          <select id="subSubFolder" onchange="updateFolderIndicator()">
+            <option value="">— raiz da subpasta acima —</option>
+          </select>
+          <span class="vs-chevron">▾</span>
+        </div>
+      </div>
+
+      <div id="folderIndicator">
+        <span class="fi-icon">📁</span>
+        <div id="folderPath"><span data-i18n="destination">Destino:</span> <span id="folderPathText">—</span></div>
+      </div>
+
+      <label class="vs-label" style="margin-top:12px; display:block;" data-i18n="rename">Renomear</label>
+      <div class="rename-block">
+        <input type="text" id="customName" placeholder="Renomear (opcional)" data-i18n-ph="renamePh" autocomplete="off"/>
+      </div>
+
+      <button id="archiveBtn" onclick="archiveEmail()">
+        <span data-i18n="archiveBtn">Arquivar</span>
+      </button>
+
+    </div>
+
+      </div><!-- fim normalFolderUI -->
+    </div><!-- fim folderSection -->
+    <div id="status"></div>
+
+  </div>
+
+  <div style="text-align:center; padding:8px 12px; background:#fff;">
+    <img src="logo-vtech.png?v=2.9" alt="VTECH IT" style="height:22px; vertical-align:middle;"/>
+    <span style="font-size:9px; color:#888; margin-left:8px; vertical-align:middle;">Vshare v4.9</span>
+  </div>
+
+</body>
+</html>
