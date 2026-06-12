@@ -24,6 +24,11 @@ const CONFIG = {
       label:       "Armazém Jurídico",
       siteUrl:     "https://fkgadv.sharepoint.com/sites/ArmazemJuridico",
       libraryName: "Armazém Juridico"
+    },
+    {
+      label:       "Modelos",
+      siteUrl:     "https://fkgadv.sharepoint.com/sites/modelos",
+      libraryName: "Modelos - FKG Advogados"
     }
   ],
 
