@@ -19,7 +19,7 @@ function validateBeforeSend(event) {
 
   // Abre o diálogo de decisão (Office Dialog API).
   // O envio fica BLOQUEADO até o diálogo retornar uma decisão.
-  const url = "https://elisontown-star.github.io/outlook-sharepoint-addin/dialog.html";
+  const url = "https://elisontown-star.github.io/FKGADVOGADOS/dialog.html";
 
   Office.context.ui.displayDialogAsync(
     url,

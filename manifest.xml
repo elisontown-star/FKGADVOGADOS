@@ -4,14 +4,14 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xsi:type="MailApp">
-  <Id>c7e94f20-1a3b-4c5d-8e6f-9a0b1c2d3e4f</Id>
-  <Version>4.6.0</Version>
+  <Id>7086bab1-8fda-495c-939f-380ef5e92869</Id>
+  <Version>4.9.0</Version>
   <ProviderName>VtechIT</ProviderName>
   <DefaultLocale>pt-BR</DefaultLocale>
-  <DisplayName DefaultValue="Vshare"/>
-  <Description DefaultValue="Arquiva emails do Outlook diretamente no SharePoint"/>
-  <IconUrl DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/icon-64.png"/>
+  <DisplayName DefaultValue="Vshare - FKG Advogados"/>
+  <Description DefaultValue="Arquiva emails do Outlook diretamente no SharePoint (FKG Advogados)"/>
+  <IconUrl DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/icon-64.png"/>
   <SupportUrl DefaultValue="https://vtechit.com.br"/>
   <AppDomains>
     <AppDomain>https://login.microsoftonline.com</AppDomain>
@@ -29,7 +29,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/taskpane.html"/>
+        <SourceLocation DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/taskpane.html"/>
         <RequestedHeight>350</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -76,13 +76,13 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/icon-64.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/icon-64.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="FunctionFile.Url" DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/function-file.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://elisontown-star.github.io/outlook-sharepoint-addin/taskpane.html"/>
+        <bt:Url id="FunctionFile.Url" DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/function-file.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://elisontown-star.github.io/FKGADVOGADOS/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Vshare"/>
