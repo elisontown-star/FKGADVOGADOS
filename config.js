@@ -1,20 +1,20 @@
 // ============================================================
-//  CONFIGURAÇÃO — preencha com os dados do seu ambiente
+//  CONFIGURAÇÃO — FKG ADVOGADOS
 // ============================================================
 
 const CONFIG = {
-  // Azure AD → App registrations → seu app
-  CLIENT_ID: "e5a8fd64-798c-4040-9caf-8797976955f4",
-  TENANT_ID: "51873eff-cfd8-4715-839f-10a25cdcbec9",
+  // Azure AD → App registrations → FKG Advogados
+  CLIENT_ID: "4ea36f97-ddd5-4382-89ea-469820e06375",
+  TENANT_ID: "a4e51e86-c3a7-4d4c-a0ca-e004030c3bb5",
 
   // URI de redirecionamento registrada no Azure AD
-  REDIRECT_URI: "https://elisontown-star.github.io/outlook-sharepoint-addin/taskpane.html",
+  REDIRECT_URI: "https://elisontown-star.github.io/FKGADVOGADOS/taskpane.html",
 
   // URL do site SharePoint (sem barra no final) — mantido para compatibilidade
-  SITE_URL: "https://vtecit.sharepoint.com/sites/armazemjuridico",
+  SITE_URL: "https://fkgadv.sharepoint.com/sites/ArmazemJuridico",
 
   // Nome da biblioteca de documentos onde os emails serão salvos — mantido para compatibilidade
-  LIBRARY_NAME: "Documentos",
+  LIBRARY_NAME: "Armazém Juridico",
 
   // ── Múltiplas bibliotecas ────────────────────────────────────
   // Adicione ou remova entradas conforme necessário.
@@ -22,13 +22,8 @@ const CONFIG = {
   SITES: [
     {
       label:       "Armazém Jurídico",
-      siteUrl:     "https://vtecit.sharepoint.com/sites/armazemjuridico",
-      libraryName: "Documentos"
-    },
-    {
-      label:       "Group Financeiro",
-      siteUrl:     "https://vtecit.sharepoint.com/sites/groupfinanceiro",
-      libraryName: "Documentos"
+      siteUrl:     "https://fkgadv.sharepoint.com/sites/ArmazemJuridico",
+      libraryName: "Armazém Juridico"
     }
   ],
 
