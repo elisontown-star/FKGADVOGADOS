@@ -1,0 +1,7 @@
+name = "fkg-presenca"
+compatibility_date = "2024-01-15"
+pages_build_output_dir = "."
+
+[[kv_namespaces]]
+binding = "ATTENDANCE"
+id = "ab4065ada3bb4d15a20c1db54ac6ff60"

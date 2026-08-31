@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar dados pessoais dos Estagiários — VPoint</title>
+<style>
+:root{--dark:#111827;--gray:#374151;--muted:#6B7280;--gold:#B8860B;--bg:#F3F4F6;--border:#E5E7EB;--border-dark:#D1D5DB;--err:#DC2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--dark);padding:28px;font-size:14px}
+.wrap{max-width:1150px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:22px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input,select{width:100%;padding:9px 12px;border:1px solid var(--border-dark);border-radius:5px;font-size:14px;font-family:inherit;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+.row{display:flex;gap:12px}.row>div{flex:1}
+button{background:var(--dark);color:#fff;border:none;padding:11px 20px;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px}
+button:hover{background:#000}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary{background:#fff;color:var(--dark);border:1px solid var(--border-dark)}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{background:#F9FAFB;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+td select{padding:5px 8px;font-size:12px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.tag-ok{background:#DCFCE7;color:#15803D}
+.tag-warn{background:#FEF3C7;color:#B45309}
+.tag-skip{background:#F3F4F6;color:var(--muted)}
+#log{background:#0F172A;color:#D1D5DB;padding:14px;border-radius:6px;font-family:monospace;font-size:12px;max-height:260px;overflow-y:auto;white-space:pre-wrap;margin-top:14px;display:none}
+.log-ok{color:#4ADE80}.log-err{color:#F87171}.log-info{color:#93C5FD}
+.note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:12px 14px;font-size:12.5px;color:#78350F;margin-top:12px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Importar dados pessoais dos Estagiários</h1>
+  <p class="sub">Preenche nascimento, CPF, RG, curso e telefone nas fichas do RH Estagiários. Semestre, contrato, salário, faculdade e supervisor não são alterados.</p>
+
+  <div class="card" id="step-login">
+    <h2>1. Entrar no VPoint</h2>
+    <label>Endereço do sistema</label>
+    <input type="text" id="base-url" value="https://fkg-presenca.pages.dev">
+    <div class="row">
+      <div><label>Usuário</label><input type="text" id="user" value="superadmin"></div>
+      <div><label>Senha</label><input type="password" id="pass" placeholder="senha do superadmin"></div>
+    </div>
+    <button id="btn-login">Entrar e carregar estagiários</button>
+    <div id="login-err" style="color:var(--err);font-size:12.5px;margin-top:10px"></div>
+  </div>
+
+  <div class="card hidden" id="step-review">
+    <h2>2. Conferir antes de importar</h2>
+    <div class="note">Confira a coluna <strong>Estagiário no VPoint</strong>. Onde estiver "não importar", o nome da planilha não bate com nenhum cadastro — escolha manualmente ou deixe de fora.</div>
+    <div id="table-wrap"></div>
+    <button id="btn-import">Importar dados</button>
+    <button class="secondary" onclick="location.reload()">Cancelar</button>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+const PLANILHA=[{"nome":"Ana Clara Camargo Domingos","nasc":"2007-01-11","cpf":"515.870.358-20","rg":"52.465.768-3","curso":"Direito","tel":"(11)94787-0098"},{"nome":"Luiza Baesso Rocha","nasc":"2004-02-20","cpf":"437.201.088-56","rg":"55.096.630-4","curso":"Direito","tel":"(19)99250-8646"},{"nome":"Ana Clara Freitas Oliveira","nasc":"2004-03-09","cpf":"701.900.174-22","rg":"52.754.585-5","curso":"Direito","tel":"(11) 96270-6427"},{"nome":"Ana Clara S. Coelho Marques de Carvalho","nasc":"2005-04-29","cpf":"456.700.038-29","rg":"56.538.372-3","curso":"Direito","tel":"(11) 98843-5343"},{"nome":"Gabriel Ramon Centurion de Camargos","nasc":"2001-05-12","cpf":"400.202.288-99","rg":"37.761.436-1","curso":"Direito","tel":"(11)94592-1986"},{"nome":"Maria Eduarda de Paschoal","nasc":"2005-05-14","cpf":"571.415.598-09","rg":"53.243.269-1","curso":"Direito","tel":"(11)98616-1643"},{"nome":"Julia Gusmão Patto","nasc":"2005-05-17","cpf":"499.394.168-05","rg":"50.661.417-7","curso":"Direito","tel":"(12) 98200-5572"},{"nome":"Leonardo Alves Robeldo","nasc":"2007-06-12","cpf":"396.091.408-31","rg":"54.312.070-3","curso":"Direito","tel":"(11)98271-8022"},{"nome":"Anna Julia Pereira Thimoteo","nasc":"2003-06-20","cpf":"529.287.708-52","rg":"52.023.625-7","curso":"Direito","tel":"(11)97144-3458"},{"nome":"Camylli Conceição de Carvalho","nasc":"2003-07-15","cpf":"504.431.808-65","rg":"39.306.566-2","curso":"Direito","tel":"(11)98304-7542"},{"nome":"Heloisa Santinato Pieruzzi","nasc":"2005-08-05","cpf":"239.804.308-80","rg":"54.880.429-1","curso":"Direito","tel":"( 11 ) 96520-7404"},{"nome":"Mateus Ribeiro Galeano","nasc":"2004-08-12","cpf":"484.729.848.93","rg":"39.935.326-4","curso":"Direito","tel":"(12)99629-1208"},{"nome":"Izabella Regina Carvalho Machado","nasc":"2003-08-21","cpf":"469.782.538-33","rg":"58.638.594-0","curso":"Direito","tel":"(11) 98390-3203"},{"nome":"Maria Eduarda Russo Chacon","nasc":"2004-10-22","cpf":"547.265.958-22","rg":"56.739.982-2","curso":"Direito","tel":"(11)98150-5973"},{"nome":"Suzanna Rodrigues Novaes","nasc":"2005-10-24","cpf":"504.355.498-39","rg":"57.611.547-2","curso":"Direito","tel":"(11)99403-2472"},{"nome":"Maria Eduarda Pereira Antunes","nasc":"2005-10-28","cpf":"406.243.098-35","rg":"52.672.619-2","curso":"Direito","tel":"(16) 99776-2810"},{"nome":"Gustavo Lahuerta Pires","nasc":"2006-11-02","cpf":"533.456.398-90","rg":"52342582X","curso":"Direito","tel":"(11)93004-7979"},{"nome":"Camila Alves Barbosa","nasc":"2006-11-24","cpf":"500.973.608-05","rg":"60.249.466-7","curso":"Direito","tel":"(11)97038-2239"},{"nome":"Bruno Tauan Marinho Batista","nasc":"2005-11-28","cpf":"577.311.208-64","rg":"56.743.240-3","curso":"Direito","tel":"(11) 96647-4132"},{"nome":"Maria Fernanda Montanari Cantarin","nasc":"2003-12-23","cpf":"029.312.671-20","rg":"58.569.881-8","curso":"Direito","tel":"(17) 98210-8773"}];
+
+let TOKEN='',BASE='',INTERNS=[];
+
+function log(msg,cls){
+  const el=document.getElementById('log');
+  el.style.display='block';
+  const d=document.createElement('div');
+  if(cls)d.className=cls;
+  d.textContent=msg;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+function norm(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().match(/[a-z]+/g)||[];
+}
+function similarity(a,b){
+  const A=new Set(norm(a)),B=new Set(norm(b));
+  let common=0;A.forEach(w=>{if(B.has(w))common++});
+  return common/Math.max(1,Math.min(A.size,B.size));
+}
+function bestMatch(nome){
+  let best=null,bestScore=0;
+  for(const it of INTERNS){
+    const sc=similarity(nome,it.person);
+    if(sc>bestScore){bestScore=sc;best=it.person}
+  }
+  return {name:bestScore>=0.5?best:'',score:bestScore};
+}
+function fmt(d){return d?d.split('-').reverse().join('/'):'—'}
+
+document.getElementById('btn-login').addEventListener('click',async()=>{
+  const errEl=document.getElementById('login-err');errEl.textContent='';
+  BASE=document.getElementById('base-url').value.trim().replace(/\/$/,'');
+  const username=document.getElementById('user').value.trim();
+  const password=document.getElementById('pass').value;
+  if(!BASE||!username||!password){errEl.textContent='Preencha endereço, usuário e senha.';return}
+  try{
+    const res=await fetch(BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const data=await res.json();
+    if(!res.ok||!data.token){errEl.textContent=data.error||'Não foi possível entrar.';return}
+    TOKEN=data.token;
+    const r2=await fetch(BASE+'/api/hr/interns',{headers:{Authorization:'Bearer '+TOKEN}});
+    const d2=await r2.json();
+    if(!r2.ok){errEl.textContent=d2.error||'Não foi possível carregar os estagiários.';return}
+    INTERNS=d2;
+    document.getElementById('step-login').classList.add('hidden');
+    document.getElementById('step-review').classList.remove('hidden');
+    renderTable();
+  }catch(e){errEl.textContent='Erro de conexão: '+e.message}
+});
+
+function renderTable(){
+  const opts=INTERNS.map(i=>i.person).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  let html='<table><thead><tr><th>Nome na planilha</th><th>Estagiário no VPoint</th><th>Nascimento</th><th>CPF</th><th>RG</th><th>Curso</th><th>Telefone</th></tr></thead><tbody>';
+  PLANILHA.forEach((p,idx)=>{
+    const m=bestMatch(p.nome);
+    const sel='<select data-idx="'+idx+'" class="match-sel"><option value="">— não importar —</option>'+
+      opts.map(o=>'<option value="'+o.replace(/"/g,'&quot;')+'"'+(o===m.name?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+    const tag=m.name?(m.score>=0.7?'<span class="tag tag-ok">auto</span>':'<span class="tag tag-warn">conferir</span>'):'<span class="tag tag-skip">sem par</span>';
+    html+='<tr><td>'+p.nome+' '+tag+'</td><td>'+sel+'</td><td>'+fmt(p.nasc)+'</td><td style="font-size:11.5px">'+(p.cpf||'—')+'</td><td style="font-size:11.5px">'+(p.rg||'—')+'</td><td>'+(p.curso||'—')+'</td><td style="font-size:11.5px">'+(p.tel||'—')+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('table-wrap').innerHTML=html;
+}
+
+document.getElementById('btn-import').addEventListener('click',async()=>{
+  const btn=document.getElementById('btn-import');btn.disabled=true;
+  document.getElementById('log').innerHTML='';
+  let ok=0,skip=0,fail=0;
+  log('Iniciando importação...','log-info');
+  for(const sel of [...document.querySelectorAll('.match-sel')]){
+    const p=PLANILHA[Number(sel.dataset.idx)];
+    const person=sel.value;
+    if(!person){log('- pulado: '+p.nome);skip++;continue}
+    const cur=INTERNS.find(i=>i.person===person)||{};
+    // preserva tudo que já existe; só sobrescreve o que veio da planilha
+    const body={
+      semester:cur.semester||'',contract_start:cur.contract_start||'',contract_end:cur.contract_end||'',
+      salary:cur.salary||'',school:cur.school||'',supervisor:cur.supervisor||'',
+      address:cur.address||'',personal_email:cur.personal_email||'',
+      birth_date:p.nasc||cur.birth_date||'',
+      cpf:p.cpf||cur.cpf||'',
+      rg:p.rg||cur.rg||'',
+      course:p.curso||cur.course||'',
+      phone:p.tel||cur.phone||''
+    };
+    try{
+      const res=await fetch(BASE+'/api/hr/interns/'+encodeURIComponent(person),{
+        method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
+        body:JSON.stringify(body)});
+      const d=await res.json();
+      if(!res.ok)throw new Error(d.error||'erro');
+      log('OK   -> '+person,'log-ok');ok++;
+    }catch(e){log('ERRO -> '+person+': '+e.message,'log-err');fail++}
+  }
+  log('');
+  log('Concluído: '+ok+' importado(s), '+skip+' pulado(s), '+fail+' com erro.',fail?'log-err':'log-ok');
+  log('Abra o VPoint em RH Estagiários para conferir.','log-info');
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar dados dos Estagiários — VPoint</title>
+<style>
+:root{--dark:#111827;--gray:#374151;--muted:#6B7280;--gold:#B8860B;--bg:#F3F4F6;--border:#E5E7EB;--border-dark:#D1D5DB;--ok:#16A34A;--warn:#D97706;--err:#DC2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--dark);padding:28px;font-size:14px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:22px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input,select{width:100%;padding:9px 12px;border:1px solid var(--border-dark);border-radius:5px;font-size:14px;font-family:inherit;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+.row{display:flex;gap:12px}.row>div{flex:1}
+button{background:var(--dark);color:#fff;border:none;padding:11px 20px;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px}
+button:hover{background:#000}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary{background:#fff;color:var(--dark);border:1px solid var(--border-dark)}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{background:#F9FAFB;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+td select{padding:5px 8px;font-size:12px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.tag-ok{background:#DCFCE7;color:#15803D}
+.tag-warn{background:#FEF3C7;color:#B45309}
+.tag-skip{background:#F3F4F6;color:var(--muted)}
+#log{background:#0F172A;color:#D1D5DB;padding:14px;border-radius:6px;font-family:monospace;font-size:12px;max-height:240px;overflow-y:auto;white-space:pre-wrap;margin-top:14px;display:none}
+.log-ok{color:#4ADE80}.log-err{color:#F87171}.log-info{color:#93C5FD}
+.note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:12px 14px;font-size:12.5px;color:#78350F;margin-top:12px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Importar dados dos Estagiários</h1>
+  <p class="sub">Preenche as fichas do módulo RH com os dados da planilha "Estagiários FKG 2026". Só grava nos campos vindos da planilha (salário, contrato, faculdade e semestre) — os demais campos já preenchidos não são apagados.</p>
+
+  <div class="card" id="step-login">
+    <h2>1. Entrar no VPoint</h2>
+    <label>Endereço do sistema</label>
+    <input type="text" id="base-url" value="https://fkg-presenca.pages.dev">
+    <div class="row">
+      <div><label>Usuário</label><input type="text" id="user" value="superadmin"></div>
+      <div><label>Senha</label><input type="password" id="pass" placeholder="senha do superadmin"></div>
+    </div>
+    <button id="btn-login">Entrar e carregar estagiários</button>
+    <div id="login-err" style="color:var(--err);font-size:12.5px;margin-top:10px"></div>
+  </div>
+
+  <div class="card hidden" id="step-review">
+    <h2>2. Conferir antes de importar</h2>
+    <label>Semestre dentro do ano letivo</label>
+    <select id="sem-half" style="max-width:320px">
+      <option value="2" selected>2º semestre do ano (ex.: 4º ano = 8º semestre)</option>
+      <option value="1">1º semestre do ano (ex.: 4º ano = 7º semestre)</option>
+    </select>
+    <div class="note">Confira a coluna <strong>Estagiário no VPoint</strong>. Onde estiver "não importar", o nome da planilha não existe no cadastro do VPoint — você pode escolher manualmente ou deixar de fora.</div>
+    <div id="table-wrap"></div>
+    <button id="btn-import">Importar dados</button>
+    <button class="secondary" onclick="location.reload()">Cancelar</button>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+const PLANILHA=[{"nome":"Maria Fernanda Montanari Cantarin","salario":2500,"inicio":"2024-04-24","fim":"2026-05-23","faculdade":"Puc","ano":"5° ano"},{"nome":"Letícia Miranda Ligeri","salario":2500,"inicio":"2024-12-02","fim":"2026-12-02","faculdade":"Puc","ano":"5° ano"},{"nome":"Maria Eduarda de Paschoal","salario":2250,"inicio":"2025-04-22","fim":"2027-04-01","faculdade":"Puc","ano":"4° ano"},{"nome":"Gustavo Lahuerta Pires","salario":1750,"inicio":"2025-05-05","fim":"2027-04-29","faculdade":"FDSBC","ano":"2° ano"},{"nome":"Luiza Baesso Rocha","salario":2250,"inicio":"2025-06-26","fim":"2027-05-30","faculdade":"Mackenzie","ano":"4° ano"},{"nome":"Bruno Tauan Marinho Batista","salario":1750,"inicio":"2025-11-03","fim":"2027-10-20","faculdade":"Mackenzie","ano":"3° ano"},{"nome":"Ana Clara Freitas Oliveira","salario":1750,"inicio":"2025-11-12","fim":"2027-11-01","faculdade":"FAAP","ano":"2° ano"},{"nome":"Mateus Ribeiro Galeano","salario":2250,"inicio":"2025-12-01","fim":"2027-11-25","faculdade":"Mackenzie","ano":"4° ano"},{"nome":"Julia Gusmão Patto","salario":1750,"inicio":"2025-12-02","fim":"2027-11-20","faculdade":"Mackenzie","ano":"2° ano"},{"nome":"Heloisa Santinato Pieruzzi","salario":2000,"inicio":"2026-02-04","fim":"2028-01-31","faculdade":"FMU","ano":"3° ano"},{"nome":"Maria Eduarda Pereira Antunes","salario":2000,"inicio":"2026-03-23","fim":"2028-03-20","faculdade":"Mackenzie","ano":"3° ano"},{"nome":"Maria Eduarda Russo Chacon","salario":2250,"inicio":"2026-04-13","fim":"2027-12-30","faculdade":"Mackenzie","ano":"4° ano"},{"nome":"Ana Clara Sayão Coelho Marques de Carvalho","salario":2250,"inicio":"2026-05-15","fim":"2027-12-30","faculdade":"Mackenzie","ano":"4° ano"},{"nome":"Suzanna  Rodrigues Novaes","salario":2000,"inicio":"2026-06-08","fim":"2028-06-01","faculdade":"Puc","ano":"3° ano"},{"nome":"Camila Alves Barbosa","salario":1750,"inicio":"2026-06-10","fim":"2028-06-01","faculdade":"FDSBC","ano":"2° ano"},{"nome":"Leonardo Alves Robeldo","salario":1750,"inicio":"2026-06-10","fim":"2028-06-01","faculdade":"FDSBC","ano":"2° ano"},{"nome":"Ana Clara Camargo Domingos","salario":1750,"inicio":"2026-06-22","fim":"2028-06-15","faculdade":"FDSBC","ano":"2° ano"},{"nome":"Izabella Regina Carvalho Machado","salario":2000,"inicio":"2026-06-22","fim":"2028-06-15","faculdade":"Mackenzie","ano":"3° ano"},{"nome":"Camiylli Conceição de Carvalho","salario":2250,"inicio":"2026-07-01","fim":"2028-06-20","faculdade":"Mackenzie","ano":"4° ano"},{"nome":"Gabriel Ramon Centurion de Camargos","salario":2250,"inicio":"2026-07-08","fim":"2027-12-31","faculdade":"Puc","ano":"4° ano"},{"nome":"Anna Julia Pereira Thimoteo","salario":2500,"inicio":"2026-08-19","fim":"2028-08-29","faculdade":"Puc","ano":"5° ano"}];
+
+let TOKEN='';
+let BASE='';
+let INTERNS=[];
+
+function log(msg,cls){
+  const el=document.getElementById('log');
+  el.style.display='block';
+  const d=document.createElement('div');
+  if(cls)d.className=cls;
+  d.textContent=msg;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+
+function norm(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().match(/[a-z]+/g)||[];
+}
+function similarity(a,b){
+  const A=new Set(norm(a)),B=new Set(norm(b));
+  let common=0;
+  A.forEach(w=>{if(B.has(w))common++});
+  return common/Math.max(1,Math.min(A.size,B.size));
+}
+function bestMatch(nome){
+  let best=null,bestScore=0;
+  for(const it of INTERNS){
+    const s=similarity(nome,it.person);
+    if(s>bestScore){bestScore=s;best=it.person}
+  }
+  return {name:bestScore>=0.5?best:'',score:bestScore};
+}
+
+function anoToSemester(anoStr,half){
+  const m=String(anoStr).match(/(\d)/);
+  if(!m)return '';
+  const ano=parseInt(m[1]);
+  return String((ano-1)*2+(half==='2'?2:1));
+}
+
+document.getElementById('btn-login').addEventListener('click',async()=>{
+  const errEl=document.getElementById('login-err');errEl.textContent='';
+  BASE=document.getElementById('base-url').value.trim().replace(/\/$/,'');
+  const username=document.getElementById('user').value.trim();
+  const password=document.getElementById('pass').value;
+  if(!BASE||!username||!password){errEl.textContent='Preencha endereço, usuário e senha.';return}
+  try{
+    const res=await fetch(BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const data=await res.json();
+    if(!res.ok||!data.token){errEl.textContent=data.error||'Não foi possível entrar.';return}
+    TOKEN=data.token;
+    const r2=await fetch(BASE+'/api/hr/interns',{headers:{Authorization:'Bearer '+TOKEN}});
+    const d2=await r2.json();
+    if(!r2.ok){errEl.textContent=d2.error||'Não foi possível carregar os estagiários.';return}
+    INTERNS=d2;
+    document.getElementById('step-login').classList.add('hidden');
+    document.getElementById('step-review').classList.remove('hidden');
+    renderTable();
+  }catch(e){errEl.textContent='Erro de conexão: '+e.message}
+});
+
+document.getElementById('sem-half').addEventListener('change',renderTable);
+
+function renderTable(){
+  const half=document.getElementById('sem-half').value;
+  const options=INTERNS.map(i=>i.person).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  let html='<table><thead><tr><th>Nome na planilha</th><th>Estagiário no VPoint</th><th>Semestre</th><th>Salário</th><th>Contrato</th><th>Faculdade</th></tr></thead><tbody>';
+  PLANILHA.forEach((p,idx)=>{
+    const m=bestMatch(p.nome);
+    const sem=anoToSemester(p.ano,half);
+    const sel=`<select data-idx="${idx}" class="match-sel"><option value="">— não importar —</option>`+
+      options.map(o=>`<option value="${o.replace(/"/g,'&quot;')}"${o===m.name?' selected':''}>${o}</option>`).join('')+'</select>';
+    const tag=m.name?(m.score>=0.7?'<span class="tag tag-ok">auto</span>':'<span class="tag tag-warn">conferir</span>'):'<span class="tag tag-skip">sem par</span>';
+    html+=`<tr>
+      <td>${p.nome} ${tag}</td>
+      <td>${sel}</td>
+      <td>${sem?sem+'º':'—'} <span style="color:var(--muted);font-size:11px">(${p.ano})</span></td>
+      <td>R$ ${Number(p.salario).toLocaleString('pt-BR')}</td>
+      <td style="font-size:11.5px">${p.inicio.split('-').reverse().join('/')}<br>${p.fim.split('-').reverse().join('/')}</td>
+      <td>${p.faculdade}</td>
+    </tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('table-wrap').innerHTML=html;
+}
+
+document.getElementById('btn-import').addEventListener('click',async()=>{
+  const btn=document.getElementById('btn-import');
+  btn.disabled=true;
+  document.getElementById('log').innerHTML='';
+  const half=document.getElementById('sem-half').value;
+  const sels=[...document.querySelectorAll('.match-sel')];
+  let ok=0,skip=0,fail=0;
+  log('Iniciando importação...','log-info');
+  for(const sel of sels){
+    const idx=Number(sel.dataset.idx);
+    const p=PLANILHA[idx];
+    const person=sel.value;
+    if(!person){log('- pulado: '+p.nome);skip++;continue}
+    const existing=INTERNS.find(i=>i.person===person)||{};
+    const body={
+      semester:anoToSemester(p.ano,half),
+      contract_start:p.inicio,
+      contract_end:p.fim,
+      salary:String(p.salario),
+      school:p.faculdade,
+      // preserva o que já estava preenchido
+      birth_date:existing.birth_date||'',
+      cpf:existing.cpf||'',
+      rg:existing.rg||'',
+      phone:existing.phone||'',
+      personal_email:existing.personal_email||'',
+      address:existing.address||'',
+      course:existing.course||'',
+      supervisor:existing.supervisor||''
+    };
+    try{
+      const res=await fetch(BASE+'/api/hr/interns/'+encodeURIComponent(person),{
+        method:'PUT',
+        headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
+        body:JSON.stringify(body)
+      });
+      const d=await res.json();
+      if(!res.ok)throw new Error(d.error||'erro');
+      log('OK   -> '+person,'log-ok');ok++;
+    }catch(e){
+      log('ERRO -> '+person+': '+e.message,'log-err');fail++;
+    }
+  }
+  log('','');
+  log(`Concluído: ${ok} importado(s), ${skip} pulado(s), ${fail} com erro.`,fail?'log-err':'log-ok');
+  log('Abra o VPoint em RH Estagiários para conferir.','log-info');
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configurar Monitor — Control iD</title>
+<style>
+:root{--dark:#111827;--gray:#575756;--gold:#B8860B;--bg:#F3F4F6;--border:#E5E7EB}
+*{box-sizing:border-box}
+body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);margin:0;padding:32px;color:var(--dark)}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--gray);font-size:13px;margin-bottom:24px}
+.card{background:#fff;border-radius:8px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06);padding:24px;margin-bottom:16px}
+.card h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);margin:0 0 14px}
+label{display:block;font-size:12px;font-weight:700;color:var(--gray);margin-bottom:4px;margin-top:12px}
+label:first-child{margin-top:0}
+input,select{width:100%;padding:9px 12px;border:1px solid #D1D5DB;border-radius:5px;font-size:14px;box-sizing:border-box;font-family:inherit;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+.row{display:flex;gap:10px}
+.row>div{flex:1}
+button{background:var(--dark);color:#fff;border:none;padding:11px 18px;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px}
+button:hover{background:#000}
+button.secondary{background:#fff;color:var(--dark);border:1px solid #D1D5DB}
+button.secondary:hover{background:#F9FAFB}
+button:disabled{opacity:.5;cursor:not-allowed}
+#log{background:#0F172A;color:#D1D5DB;padding:14px;border-radius:6px;font-family:monospace;font-size:12px;max-height:280px;overflow-y:auto;white-space:pre-wrap;margin-top:16px;display:none}
+.log-ok{color:#4ADE80}
+.log-err{color:#F87171}
+.log-info{color:#93C5FD}
+.fallback{background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:14px;font-size:13px;margin-top:16px;display:none}
+.fallback code{display:block;background:#1F2937;color:#D1D5DB;padding:10px;border-radius:4px;font-size:11px;margin-top:8px;white-space:pre-wrap;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Configurar Monitor no equipamento Control iD</h1>
+  <p class="sub">Abra este arquivo em um computador conectado à mesma rede local do equipamento (a mesma rede do escritório). Este assistente configura o equipamento para enviar os eventos de biometria automaticamente para o sistema de presença.</p>
+
+  <div class="card">
+    <h2>1. Dados do equipamento</h2>
+    <label>Endereço IP do equipamento na rede local</label>
+    <input type="text" id="dev-ip" placeholder="Ex: 192.168.0.50">
+    <div class="row">
+      <div>
+        <label>Usuário administrador</label>
+        <input type="text" id="dev-user" value="admin">
+      </div>
+      <div>
+        <label>Senha administrador</label>
+        <input type="password" id="dev-pass" value="admin">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Para onde enviar</h2>
+    <label>Cole aqui a URL copiada em Configurações → Integração Biometria no sistema FKG</label>
+    <input type="text" id="webhook-url" placeholder="https://fkg-presenca.pages.dev/api/controlid/webhook/xxxxxxxx">
+
+    <label>Modo de envio</label>
+    <select id="send-mode" onchange="onSendModeChange()">
+      <option value="direct">Direto para o sistema FKG (HTTPS — só funciona se o equipamento suportar HTTPS)</option>
+      <option value="bridge">Via Ponte local (o equipamento só fala HTTP — use se o teste direto não funcionar)</option>
+    </select>
+
+    <div id="bridge-fields" style="display:none">
+      <label>IP do computador onde a Ponte está rodando (ponte-controlid.ps1)</label>
+      <input type="text" id="bridge-ip" placeholder="Ex: 192.168.0.10">
+      <p style="font-size:11px;color:var(--gray);margin-top:4px">A porta da Ponte (3939) é usada automaticamente. Deixe o script <code>ponte-controlid.ps1</code> rodando nesse computador.</p>
+    </div>
+
+    <div id="direct-fields">
+      <label>Porta</label>
+      <input type="text" id="webhook-port" value="443" style="max-width:120px">
+      <p style="font-size:11px;color:var(--gray);margin-top:4px">Use <strong>443</strong> para HTTPS normal. Para diagnóstico (testar se o equipamento só suporta HTTP puro), troque para <strong>80</strong> temporariamente e aponte para um serviço de teste como webhook.site.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Executar</h2>
+    <button id="btn-test-login">Testar login no equipamento</button>
+    <button id="btn-configure" class="secondary" disabled>Configurar Monitor</button>
+    <div id="log"></div>
+    <div id="fallback" class="fallback">
+      <strong>Não foi possível confirmar pela página (bloqueio de segurança do navegador).</strong>
+      <p style="margin:8px 0 0">Isso é comum quando o equipamento não libera resposta para páginas web. Peça para alguém de TI rodar o comando abaixo no PowerShell, em um computador da mesma rede do equipamento:</p>
+      <code id="fallback-cmd"></code>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>4. Corrigir data/hora do equipamento (NTP)</h2>
+    <p style="font-size:13px;color:var(--gray);margin-bottom:8px">Se o horário dos eventos de biometria estiver errado, o relógio interno do equipamento pode estar desconfigurado. Isso ajusta o fuso horário para Brasília (UTC-3) e habilita a sincronização automática.</p>
+    <button id="btn-fix-ntp" class="secondary" disabled>Ajustar para Horário de Brasília (UTC-3)</button>
+    <div id="ntp-fallback" class="fallback">
+      <strong>Não foi possível confirmar pela página.</strong>
+      <p style="margin:8px 0 0">Rode este comando no PowerShell, em um computador da mesma rede do equipamento:</p>
+      <code id="ntp-fallback-cmd"></code>
+    </div>
+  </div>
+</div>
+
+<script>
+let session = '';
+
+function log(msg, cls){
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  const line = document.createElement('div');
+  if(cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function parseWebhookUrl(url){
+  try{
+    const u = new URL(url.trim());
+    return { hostname: u.hostname, path: u.pathname.replace(/^\//,'') };
+  }catch(e){ return null; }
+}
+
+function onSendModeChange(){
+  const mode = document.getElementById('send-mode').value;
+  document.getElementById('bridge-fields').style.display = mode==='bridge' ? 'block' : 'none';
+  document.getElementById('direct-fields').style.display = mode==='direct' ? 'block' : 'none';
+}
+
+document.getElementById('btn-test-login').addEventListener('click', async () => {
+  const ip = document.getElementById('dev-ip').value.trim();
+  const user = document.getElementById('dev-user').value;
+  const pass = document.getElementById('dev-pass').value;
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('fallback').style.display = 'none';
+  if(!ip){ log('Informe o IP do equipamento.', 'log-err'); return; }
+
+  log('Conectando em http://' + ip + '/login.fcgi ...', 'log-info');
+  try{
+    const res = await fetch('http://' + ip + '/login.fcgi', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({login: user, password: pass})
+    });
+    const data = await res.json();
+    if(data.session){
+      session = data.session;
+      log('Login OK. Sessão obtida.', 'log-ok');
+      document.getElementById('btn-configure').disabled = false;
+      document.getElementById('btn-fix-ntp').disabled = false;
+    } else {
+      log('Login falhou: ' + JSON.stringify(data), 'log-err');
+      showFallbackLogin(ip, user, pass);
+    }
+  }catch(e){
+    log('Erro de conexão: ' + e.message, 'log-err');
+    log('O navegador pode estar bloqueando a resposta do equipamento por segurança (CORS/mixed content).', 'log-info');
+    showFallbackLogin(ip, user, pass);
+  }
+});
+
+document.getElementById('btn-configure').addEventListener('click', async () => {
+  const ip = document.getElementById('dev-ip').value.trim();
+  const webhookUrl = document.getElementById('webhook-url').value.trim();
+  const mode = document.getElementById('send-mode').value;
+  const parsed = parseWebhookUrl(webhookUrl);
+  if(!parsed){ log('Cole a URL completa do webhook (copiada da tela Configurações).', 'log-err'); return; }
+  if(!session){ log('Faça o login primeiro.', 'log-err'); return; }
+
+  let targetHostname, targetPort;
+  if(mode === 'bridge'){
+    targetHostname = document.getElementById('bridge-ip').value.trim();
+    targetPort = '3939';
+    if(!targetHostname){ log('Informe o IP do computador onde a Ponte está rodando.', 'log-err'); return; }
+  } else {
+    targetHostname = parsed.hostname;
+    targetPort = document.getElementById('webhook-port').value.trim() || '443';
+  }
+
+  const configBody = {
+    monitor: {
+      request_timeout: '5000',
+      hostname: targetHostname,
+      port: targetPort,
+      path: parsed.path
+    }
+  };
+
+  log('Enviando configuração do Monitor...', 'log-info');
+  try{
+    const res = await fetch('http://' + ip + '/set_configuration.fcgi?session=' + session, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(configBody)
+    });
+    const data = await res.json();
+    log('Resposta do equipamento: ' + JSON.stringify(data), data.success===false ? 'log-err' : 'log-ok');
+    log('Configuração enviada! Bata o dedo no equipamento e confira o log em Configurações → Integração Biometria no sistema.', 'log-ok');
+  }catch(e){
+    log('Erro de conexão: ' + e.message, 'log-err');
+    showFallbackConfig(ip, {hostname:targetHostname, path:parsed.path}, targetPort);
+  }
+});
+
+document.getElementById('btn-fix-ntp').addEventListener('click', async () => {
+  const ip = document.getElementById('dev-ip').value.trim();
+  document.getElementById('ntp-fallback').style.display = 'none';
+  if(!session){ log('Faça o login primeiro.', 'log-err'); return; }
+
+  const configBody = {
+    ntp: {
+      enabled: '1',
+      timezone: 'UTC-3'
+    }
+  };
+
+  log('Ajustando NTP e fuso horário para UTC-3 (Brasília)...', 'log-info');
+  try{
+    const res = await fetch('http://' + ip + '/set_configuration.fcgi?session=' + session, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(configBody)
+    });
+    const data = await res.json();
+    log('Resposta do equipamento: ' + JSON.stringify(data), data.success===false ? 'log-err' : 'log-ok');
+    log('Horário ajustado! Pode ser necessário reiniciar o equipamento para aplicar completamente.', 'log-ok');
+  }catch(e){
+    log('Erro de conexão: ' + e.message, 'log-err');
+    const fb = document.getElementById('ntp-fallback');
+    fb.style.display = 'block';
+    document.getElementById('ntp-fallback-cmd').textContent =
+`# 1) Faça login e copie o valor de "session" da resposta:
+curl.exe -X POST http://${ip}/login.fcgi -H "Content-Type: application/json" -d "{\\"login\\":\\"admin\\",\\"password\\":\\"admin\\"}"
+
+# 2) Cole o valor de session abaixo no lugar de SESSION_AQUI:
+curl.exe -X POST "http://${ip}/set_configuration.fcgi?session=SESSION_AQUI" -H "Content-Type: application/json" -d "{\\"ntp\\":{\\"enabled\\":\\"1\\",\\"timezone\\":\\"UTC-3\\"}}"`;
+  }
+});
+
+function showFallbackLogin(ip, user, pass){
+  const fb = document.getElementById('fallback');
+  fb.style.display = 'block';
+  document.getElementById('fallback-cmd').textContent =
+`curl.exe -X POST http://${ip}/login.fcgi -H "Content-Type: application/json" -d "{\\"login\\":\\"${user}\\",\\"password\\":\\"${pass}\\"}"`;
+}
+
+function showFallbackConfig(ip, parsed, port){
+  const fb = document.getElementById('fallback');
+  fb.style.display = 'block';
+  document.getElementById('fallback-cmd').textContent =
+`# 1) Faça login e copie o valor de "session" da resposta:
+curl.exe -X POST http://${ip}/login.fcgi -H "Content-Type: application/json" -d "{\\"login\\":\\"admin\\",\\"password\\":\\"admin\\"}"
+
+# 2) Cole o valor de session abaixo no lugar de SESSION_AQUI:
+curl.exe -X POST "http://${ip}/set_configuration.fcgi?session=SESSION_AQUI" -H "Content-Type: application/json" -d "{\\"monitor\\":{\\"request_timeout\\":\\"5000\\",\\"hostname\\":\\"${parsed.hostname}\\",\\"port\\":\\"${port||'443'}\\",\\"path\\":\\"${parsed.path}\\"}}"`;
+}
+</script>
+</body>
+</html>

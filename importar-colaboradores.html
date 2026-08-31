@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar dados dos Colaboradores — VPoint</title>
+<style>
+:root{--dark:#111827;--gray:#374151;--muted:#6B7280;--gold:#B8860B;--bg:#F3F4F6;--border:#E5E7EB;--border-dark:#D1D5DB;--err:#DC2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--dark);padding:28px;font-size:14px}
+.wrap{max-width:1200px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:22px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input,select{width:100%;padding:9px 12px;border:1px solid var(--border-dark);border-radius:5px;font-size:14px;font-family:inherit;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+.row{display:flex;gap:12px}.row>div{flex:1}
+button{background:var(--dark);color:#fff;border:none;padding:11px 20px;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px}
+button:hover{background:#000}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary{background:#fff;color:var(--dark);border:1px solid var(--border-dark)}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{background:#F9FAFB;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+td select{padding:5px 8px;font-size:12px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.tag-ok{background:#DCFCE7;color:#15803D}
+.tag-warn{background:#FEF3C7;color:#B45309}
+.tag-skip{background:#F3F4F6;color:var(--muted)}
+.tag-alert{background:#FEE2E2;color:#B91C1C}
+#log{background:#0F172A;color:#D1D5DB;padding:14px;border-radius:6px;font-family:monospace;font-size:12px;max-height:260px;overflow-y:auto;white-space:pre-wrap;margin-top:14px;display:none}
+.log-ok{color:#4ADE80}.log-err{color:#F87171}.log-info{color:#93C5FD}
+.note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:12px 14px;font-size:12.5px;color:#78350F;margin-top:12px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Importar dados dos Colaboradores</h1>
+  <p class="sub">Preenche as fichas do RH Geral (cargo, nascimento, admissão e telefone) com os dados da planilha "Colaboradores".</p>
+
+  <div class="card" id="step-login">
+    <h2>1. Entrar no VPoint</h2>
+    <label>Endereço do sistema</label>
+    <input type="text" id="base-url" value="https://fkg-presenca.pages.dev">
+    <div class="row">
+      <div><label>Usuário</label><input type="text" id="user" value="superadmin"></div>
+      <div><label>Senha</label><input type="password" id="pass" placeholder="senha do superadmin"></div>
+    </div>
+    <button id="btn-login">Entrar e carregar colaboradores</button>
+    <div id="login-err" style="color:var(--err);font-size:12.5px;margin-top:10px"></div>
+  </div>
+
+  <div class="card hidden" id="step-review">
+    <h2>2. Conferir antes de importar</h2>
+    <div class="note">Confira a coluna <strong>Colaborador no VPoint</strong>. Linhas marcadas com <span class="tag tag-alert">data?</span> têm data de nascimento que parece incorreta na planilha (ano recente) — revise antes ou desmarque.</div>
+    <div id="table-wrap"></div>
+    <button id="btn-import">Importar dados</button>
+    <button class="secondary" onclick="location.reload()">Cancelar</button>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+const PLANILHA=[{"nome":"Antonio Marcos Serafim","nasc":"1983-07-01","grupo":"Administrativo","adm":"2024-10-28","tel":"(11) 97971-9984","cargo":"Assistente Administrativo"},{"nome":"Leila Almeida Marques","nasc":"1986-01-07","grupo":"Administrativo","adm":"2018-11-22","tel":"(11) 98276-2449","cargo":"Auxiliar Administrativo"},{"nome":"Evelyn Chiogna","nasc":"1985-07-12","grupo":"Administrativo","adm":"2024-04-08","tel":"(11) 98371-5900","cargo":"Auxiliar Administrativo"},{"nome":"Renata Oliveira de Abreu Simões","nasc":"1983-07-16","grupo":"Administrativo","adm":"2025-06-23","tel":"(11)96936-0676","cargo":"Auxiliar Administrativo"},{"nome":"Vanessa Aparecida de Moraes","nasc":"1976-12-26","grupo":"Administrativo","adm":"2025-06-23","tel":"(11)96485-1481","cargo":"Auxiliar Administrativo"},{"nome":"Claudimeire Fernandes Souza","nasc":"1981-01-31","grupo":"Administrativo","adm":"2019-10-01","tel":"(11) 96751-8884","cargo":"Copeira"},{"nome":"Francisca Monteiro","nasc":"1972-04-11","grupo":"Administrativo","adm":"2018-11-01","tel":"(11) 97620-6790","cargo":"Gerente Financeiro"},{"nome":"Sasha Mirella dos Santos Silva","nasc":"1998-01-02","grupo":"Advogado (a)","adm":"2024-05-23","tel":"(11) 98601-6496","cargo":""},{"nome":"Beatriz Armani","nasc":"1994-01-14","grupo":"Advogado (a)","adm":"2023-07-03","tel":"(11) 97278-4844","cargo":""},{"nome":"Luiz Gustavo Garcia","nasc":"1997-01-17","grupo":"Advogado (a)","adm":"2022-03-10","tel":"(11) 95397-6997","cargo":""},{"nome":"Vitória Bertocco Franco","nasc":"2001-01-26","grupo":"Advogado (a)","adm":"2024-11-01","tel":"(14)98175-4772","cargo":""},{"nome":"Bárbara Vitória Miranda Yassu","nasc":"2002-02-22","grupo":"Advogado (a)","adm":"2025-04-07","tel":"(11)94204-3890","cargo":""},{"nome":"Eduardo Gagliano","nasc":"1993-03-15","grupo":"Advogado (a)","adm":"2022-06-20","tel":"(11) 98923-9321","cargo":""},{"nome":"Graziela Coelho","nasc":"1992-03-17","grupo":"Advogado (a)","adm":"","tel":"","cargo":""},{"nome":"Verônica Oliveira Corradini","nasc":"1996-03-20","grupo":"Advogado (a)","adm":"2024-01-08","tel":"(14) 99673-2330","cargo":""},{"nome":"Anike Taucci","nasc":"2002-04-01","grupo":"Advogado (a)","adm":"2024-07-02","tel":"(11) 98788-2224","cargo":""},{"nome":"Mariana Ambrósio","nasc":"1996-04-10","grupo":"Advogado (a)","adm":"2022-01-07","tel":"(11) 95639-0235","cargo":""},{"nome":"Vitória Sardeiro","nasc":"2024-04-16","grupo":"Advogado (a)","adm":"","tel":"(11) 99416-5247","cargo":""},{"nome":"Luís Felipe Meira Marques Simão","nasc":"2006-05-02","grupo":"Advogado (a)","adm":"2025-05-19","tel":"(11) 99945-1209","cargo":""},{"nome":"Luisa Opice","nasc":"1995-07-28","grupo":"Advogado (a)","adm":"","tel":"(11) 9964-1415","cargo":""},{"nome":"Rebeca Bizetti","nasc":"1998-08-16","grupo":"Advogado (a)","adm":"2024-03-25","tel":"(11) 98126-8730","cargo":""},{"nome":"Mariana Ferro","nasc":"1995-08-19","grupo":"Advogado (a)","adm":"","tel":"(11) 97566-3040","cargo":""},{"nome":"Gabriela Ciaramicoli","nasc":"2024-09-21","grupo":"Advogado (a)","adm":"2023-07-10","tel":"(11) 97523-4000","cargo":""},{"nome":"Edvânia Cassimiro","nasc":"1997-09-23","grupo":"Advogado (a)","adm":"","tel":"(11) 95152-3880","cargo":""},{"nome":"Fernanda Rodrigues","nasc":"1997-11-05","grupo":"Advogado (a)","adm":"2022-06-20","tel":"(11) 96497-4075","cargo":""},{"nome":"Rafaela Notarbartolo Di villarosa Farina","nasc":"2000-11-10","grupo":"Advogado (a)","adm":"2025-08-18","tel":"(11) 99787-1514","cargo":""},{"nome":"Reynaldo Tufano","nasc":"2000-12-27","grupo":"Advogado (a)","adm":"2023-12-01","tel":"(11) 99392-9434","cargo":""},{"nome":"Letícia Miranda Ligeri","nasc":"2003-12-21","grupo":"Advogado (a)","adm":"2024-12-02","tel":"(11)99379-7925","cargo":""},{"nome":"Pietra Maciel","nasc":"2001-12-09","grupo":"Advogado (a)","adm":"2024-04-01","tel":"(12) 99731-0607","cargo":""},{"nome":"Ana Clara Camargo Domingos","nasc":"2007-01-11","grupo":"Estagiário (a)","adm":"2026-06-22","tel":"(11)94787-0098","cargo":""},{"nome":"Luiza Baesso Rocha","nasc":"2004-02-20","grupo":"Estagiário (a)","adm":"2025-06-26","tel":"(19)99250-8646","cargo":""},{"nome":"Ana Clara Freitas Oliveira","nasc":"2004-03-09","grupo":"Estagiário (a)","adm":"2025-11-12","tel":"(11) 96270-6427","cargo":""},{"nome":"Ana Clara S. Coelho Marques de Carvalho","nasc":"2005-04-29","grupo":"Estagiário (a)","adm":"2026-04-15","tel":"(11) 98843-5343","cargo":""},{"nome":"Gabriel Ramon Centurion de Camargos","nasc":"2001-05-12","grupo":"Estagiário (a)","adm":"2026-07-08","tel":"(11)94592-1986","cargo":""},{"nome":"Maria Eduarda de Paschoal","nasc":"2005-05-14","grupo":"Estagiário (a)","adm":"2025-04-22","tel":"","cargo":""},{"nome":"Julia Gusmão Patto","nasc":"2005-05-17","grupo":"Estagiário (a)","adm":"2025-12-02","tel":"(12) 98200-5572","cargo":""},{"nome":"Leonardo Alves Robeldo","nasc":"2007-06-12","grupo":"Estagiário (a)","adm":"2026-06-10","tel":"(11)98271-8022","cargo":""},{"nome":"Anna Julia Pereira Thimoteo","nasc":"2003-06-20","grupo":"Estagiário (a)","adm":"2026-08-19","tel":"(11)97144-3458","cargo":""},{"nome":"Camylli Conceição de Carvalho","nasc":"2003-07-15","grupo":"Estagiário (a)","adm":"2026-07-01","tel":"(11)98304-7542","cargo":""},{"nome":"Heloisa Santinato Pieruzzi","nasc":"2005-08-05","grupo":"Estagiário (a)","adm":"2026-02-04","tel":"( 11 ) 96520-7404","cargo":""},{"nome":"Mateus Ribeiro Galeano","nasc":"2004-08-12","grupo":"Estagiário (a)","adm":"2025-12-01","tel":"(12)99629-1208","cargo":""},{"nome":"Izabella Regina Carvalho Machado","nasc":"2003-08-21","grupo":"Estagiário (a)","adm":"2026-06-22","tel":"(11) 98390-3203","cargo":""},{"nome":"Maria Eduarda Russo Chacon","nasc":"2004-10-22","grupo":"Estagiário (a)","adm":"2026-04-13","tel":"(11)98150-5973","cargo":""},{"nome":"Suzanna Rodrigues Novaes","nasc":"2005-10-24","grupo":"Estagiário (a)","adm":"2026-06-10","tel":"","cargo":""},{"nome":"Maria Eduarda Pereira Antunes","nasc":"2005-10-28","grupo":"Estagiário (a)","adm":"2026-03-23","tel":"(16) 99776-2810","cargo":""},{"nome":"Gustavo Lahuerta Pires","nasc":"2006-11-02","grupo":"Estagiário (a)","adm":"2025-05-05","tel":"(11)93004-7979","cargo":""},{"nome":"Camila Alves Barbosa","nasc":"2006-11-24","grupo":"Estagiário (a)","adm":"2026-06-10","tel":"(11)97038-2239","cargo":""},{"nome":"Bruno Tauan Marinho Batista","nasc":"2005-11-28","grupo":"Estagiário (a)","adm":"2025-11-03","tel":"(11) 96647-4132","cargo":""},{"nome":"Maria Fernanda Montanari Cantarin","nasc":"2003-12-23","grupo":"Estagiário (a)","adm":"2024-05-01","tel":"(17) 98210-8773","cargo":""},{"nome":"Marina Tavares","nasc":"1982-02-20","grupo":"Sócio (a)","adm":"","tel":"(11) 98569-6905","cargo":""},{"nome":"Cristiano Kozan","nasc":"1978-03-30","grupo":"Sócio (a)","adm":"","tel":"","cargo":""},{"nome":"Raphael Burleigh","nasc":"2024-04-14","grupo":"Sócio (a)","adm":"","tel":"","cargo":""},{"nome":"Marina Falcone","nasc":"1987-05-06","grupo":"Sócio (a)","adm":"","tel":"(11) 99906-7443","cargo":""},{"nome":"Renata Ambrosio","nasc":"1987-05-08","grupo":"Sócio (a)","adm":"","tel":"(11) 99514-7099","cargo":""},{"nome":"Marco Vanin Gasparetti","nasc":"1980-10-24","grupo":"Sócio (a)","adm":"","tel":"(11) 98485-3800","cargo":""},{"nome":"Giovanna Rizzo","nasc":"1987-12-14","grupo":"Sócio (a)","adm":"","tel":"(11) 99977-4699","cargo":""}];
+
+let TOKEN='',BASE='',STAFF=[];
+
+function log(msg,cls){
+  const el=document.getElementById('log');
+  el.style.display='block';
+  const d=document.createElement('div');
+  if(cls)d.className=cls;
+  d.textContent=msg;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+function norm(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().match(/[a-z]+/g)||[];
+}
+function similarity(a,b){
+  const A=new Set(norm(a)),B=new Set(norm(b));
+  let common=0;A.forEach(w=>{if(B.has(w))common++});
+  return common/Math.max(1,Math.min(A.size,B.size));
+}
+function bestMatch(nome){
+  let best=null,bestScore=0;
+  for(const s of STAFF){
+    const sc=similarity(nome,s.person);
+    if(sc>bestScore){bestScore=sc;best=s.person}
+  }
+  return {name:bestScore>=0.5?best:'',score:bestScore};
+}
+function fmt(d){return d?d.split('-').reverse().join('/'):'—'}
+
+document.getElementById('btn-login').addEventListener('click',async()=>{
+  const errEl=document.getElementById('login-err');errEl.textContent='';
+  BASE=document.getElementById('base-url').value.trim().replace(/\/$/,'');
+  const username=document.getElementById('user').value.trim();
+  const password=document.getElementById('pass').value;
+  if(!BASE||!username||!password){errEl.textContent='Preencha endereço, usuário e senha.';return}
+  try{
+    const res=await fetch(BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const data=await res.json();
+    if(!res.ok||!data.token){errEl.textContent=data.error||'Não foi possível entrar.';return}
+    TOKEN=data.token;
+    const r2=await fetch(BASE+'/api/hr/staff',{headers:{Authorization:'Bearer '+TOKEN}});
+    const d2=await r2.json();
+    if(!r2.ok){errEl.textContent=d2.error||'Não foi possível carregar os colaboradores.';return}
+    STAFF=d2;
+    document.getElementById('step-login').classList.add('hidden');
+    document.getElementById('step-review').classList.remove('hidden');
+    renderTable();
+  }catch(e){errEl.textContent='Erro de conexão: '+e.message}
+});
+
+function renderTable(){
+  const opts=STAFF.map(s=>s.person).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  let html='<table><thead><tr><th>Nome na planilha</th><th>Colaborador no VPoint</th><th>Cargo</th><th>Nascimento</th><th>Admissão</th><th>Telefone</th></tr></thead><tbody>';
+  PLANILHA.forEach((p,idx)=>{
+    const m=bestMatch(p.nome);
+    const cargo=p.cargo||p.grupo;
+    const suspeita=p.nasc&&p.nasc>'2015';
+    const sel='<select data-idx="'+idx+'" class="match-sel"><option value="">— não importar —</option>'+
+      opts.map(o=>'<option value="'+o.replace(/"/g,'&quot;')+'"'+(o===m.name?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+    const tag=m.name?(m.score>=0.7?'<span class="tag tag-ok">auto</span>':'<span class="tag tag-warn">conferir</span>'):'<span class="tag tag-skip">sem par</span>';
+    html+='<tr><td>'+p.nome+' '+tag+'</td><td>'+sel+'</td><td>'+cargo+'</td><td>'+fmt(p.nasc)+(suspeita?' <span class="tag tag-alert">data?</span>':'')+'</td><td>'+fmt(p.adm)+'</td><td>'+(p.tel||'—')+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('table-wrap').innerHTML=html;
+}
+
+document.getElementById('btn-import').addEventListener('click',async()=>{
+  const btn=document.getElementById('btn-import');btn.disabled=true;
+  document.getElementById('log').innerHTML='';
+  let ok=0,skip=0,fail=0;
+  log('Iniciando importação...','log-info');
+  for(const sel of [...document.querySelectorAll('.match-sel')]){
+    const p=PLANILHA[Number(sel.dataset.idx)];
+    const person=sel.value;
+    if(!person){log('- pulado: '+p.nome);skip++;continue}
+    const body={role:p.cargo||p.grupo,birth_date:p.nasc||'',admission_date:p.adm||'',phone:p.tel||''};
+    try{
+      const res=await fetch(BASE+'/api/hr/staff/'+encodeURIComponent(person),{
+        method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
+        body:JSON.stringify(body)});
+      const d=await res.json();
+      if(!res.ok)throw new Error(d.error||'erro');
+      log('OK   -> '+person,'log-ok');ok++;
+    }catch(e){log('ERRO -> '+person+': '+e.message,'log-err');fail++}
+  }
+  log('');
+  log('Concluído: '+ok+' importado(s), '+skip+' pulado(s), '+fail+' com erro.',fail?'log-err':'log-ok');
+  log('Abra o VPoint em RH Geral para conferir.','log-info');
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>

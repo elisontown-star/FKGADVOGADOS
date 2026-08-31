@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carga inicial do histórico de equipe — VPoint</title>
+<style>
+:root{--dark:#111827;--gray:#374151;--muted:#6B7280;--gold:#B8860B;--bg:#F3F4F6;--border:#E5E7EB;--border-dark:#D1D5DB;--err:#DC2626;--ok:#15803D}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--dark);padding:28px;font-size:14px}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:22px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input{width:100%;padding:9px 12px;border:1px solid var(--border-dark);border-radius:5px;font-size:14px;font-family:inherit;background:#fff}
+input:focus{outline:none;border-color:var(--gold)}
+.row{display:flex;gap:12px}.row>div{flex:1}
+button{background:var(--dark);color:#fff;border:none;padding:11px 20px;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px}
+button:hover{background:#000}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary{background:#fff;color:var(--dark);border:1px solid var(--border-dark)}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{background:#F9FAFB;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.tag-ok{background:#DCFCE7;color:#15803D}
+.tag-skip{background:#F3F4F6;color:var(--muted)}
+.tag-warn{background:#FEF3C7;color:#B45309}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px 16px;border-top:4px solid var(--dark)}
+.kpi-l{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi-v{font-size:24px;font-weight:700;margin-top:4px}
+#log{background:#0F172A;color:#D1D5DB;padding:14px;border-radius:6px;font-family:monospace;font-size:12px;max-height:240px;overflow-y:auto;white-space:pre-wrap;margin-top:14px;display:none}
+.log-ok{color:#4ADE80}.log-err{color:#F87171}.log-info{color:#93C5FD}
+.note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:12px 14px;font-size:12.5px;color:#78350F;margin-top:12px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Carga inicial do histórico de equipe</h1>
+  <p class="sub">Registra as admissões passadas no histórico de movimentação, usando as datas de admissão já cadastradas no RH Geral. Assim o relatório de movimentação passa a cobrir também o período anterior.</p>
+
+  <div class="card" id="step-login">
+    <h2>1. Entrar no VPoint</h2>
+    <label>Endereço do sistema</label>
+    <input type="text" id="base-url" value="https://fkg-presenca.pages.dev">
+    <div class="row">
+      <div><label>Usuário</label><input type="text" id="user" value="superadmin"></div>
+      <div><label>Senha</label><input type="password" id="pass" placeholder="senha do superadmin"></div>
+    </div>
+    <button id="btn-login">Entrar e analisar</button>
+    <div id="login-err" style="color:var(--err);font-size:12.5px;margin-top:10px"></div>
+  </div>
+
+  <div class="card hidden" id="step-review">
+    <h2>2. Conferir antes de gravar</h2>
+    <div class="kpis" id="kpis"></div>
+    <div class="note">
+      Só entram no histórico as pessoas que têm <strong>data de admissão preenchida</strong> no RH Geral e que ainda <strong>não possuem</strong> admissão registrada. Rodar esta página mais de uma vez não duplica nada.
+    </div>
+    <div id="table-wrap"></div>
+    <button id="btn-run">Gravar histórico</button>
+    <button class="secondary" onclick="location.reload()">Cancelar</button>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+let TOKEN='',BASE='',STAFF=[],LOG=[],TODO=[],SEMDATA=[],JATEM=[];
+
+function log(msg,cls){
+  const el=document.getElementById('log');
+  el.style.display='block';
+  const d=document.createElement('div');
+  if(cls)d.className=cls;
+  d.textContent=msg;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+function fmt(d){return d?d.split('-').reverse().join('/'):'—'}
+
+document.getElementById('btn-login').addEventListener('click',async()=>{
+  const errEl=document.getElementById('login-err');errEl.textContent='';
+  BASE=document.getElementById('base-url').value.trim().replace(/\/$/,'');
+  const username=document.getElementById('user').value.trim();
+  const password=document.getElementById('pass').value;
+  if(!BASE||!username||!password){errEl.textContent='Preencha endereço, usuário e senha.';return}
+  try{
+    const res=await fetch(BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const data=await res.json();
+    if(!res.ok||!data.token){errEl.textContent=data.error||'Não foi possível entrar.';return}
+    if(data.role!=='superadmin'){errEl.textContent='É necessário entrar como superadmin.';return}
+    TOKEN=data.token;
+    const h={Authorization:'Bearer '+TOKEN};
+    const [r1,r2]=await Promise.all([
+      fetch(BASE+'/api/hr/staff',{headers:h}),
+      fetch(BASE+'/api/employees/log',{headers:h})
+    ]);
+    STAFF=await r1.json();
+    LOG=await r2.json();
+    if(!r1.ok){errEl.textContent=STAFF.error||'Erro ao carregar colaboradores.';return}
+    if(!r2.ok){errEl.textContent=LOG.error||'Erro ao carregar histórico.';return}
+    analisar();
+    document.getElementById('step-login').classList.add('hidden');
+    document.getElementById('step-review').classList.remove('hidden');
+  }catch(e){errEl.textContent='Erro de conexão: '+e.message}
+});
+
+function analisar(){
+  const jaRegistrados=new Set(LOG.filter(e=>e.type==='admissao').map(e=>e.person));
+  TODO=[];SEMDATA=[];JATEM=[];
+  STAFF.forEach(s=>{
+    if(jaRegistrados.has(s.person)){JATEM.push(s);return}
+    if(!s.admission_date){SEMDATA.push(s);return}
+    TODO.push({person:s.person,team:s.team,date:s.admission_date,role:s.role||''});
+  });
+  TODO.sort((a,b)=>a.date.localeCompare(b.date));
+
+  document.getElementById('kpis').innerHTML=
+    '<div class="kpi" style="border-top-color:#15803D"><div class="kpi-l">Serão registrados</div><div class="kpi-v" style="color:#15803D">'+TODO.length+'</div></div>'+
+    '<div class="kpi" style="border-top-color:#B45309"><div class="kpi-l">Sem data de admissão</div><div class="kpi-v" style="color:#B45309">'+SEMDATA.length+'</div></div>'+
+    '<div class="kpi" style="border-top-color:#6B7280"><div class="kpi-l">Já no histórico</div><div class="kpi-v" style="color:#6B7280">'+JATEM.length+'</div></div>'+
+    '<div class="kpi"><div class="kpi-l">Total no RH Geral</div><div class="kpi-v">'+STAFF.length+'</div></div>';
+
+  let html='<table><thead><tr><th>Colaborador</th><th>Equipe</th><th>Cargo</th><th>Data de admissão</th><th>Situação</th></tr></thead><tbody>';
+  TODO.forEach(t=>{
+    html+='<tr><td style="font-weight:600">'+t.person+'</td><td>'+t.team+'</td><td style="color:var(--muted)">'+(t.role||'—')+'</td><td>'+fmt(t.date)+'</td><td><span class="tag tag-ok">será registrado</span></td></tr>';
+  });
+  SEMDATA.forEach(s=>{
+    html+='<tr><td style="font-weight:600">'+s.person+'</td><td>'+s.team+'</td><td style="color:var(--muted)">'+(s.role||'—')+'</td><td>—</td><td><span class="tag tag-warn">sem data no RH Geral</span></td></tr>';
+  });
+  JATEM.forEach(s=>{
+    html+='<tr><td style="font-weight:600">'+s.person+'</td><td>'+s.team+'</td><td style="color:var(--muted)">'+(s.role||'—')+'</td><td>'+fmt(s.admission_date)+'</td><td><span class="tag tag-skip">já registrado</span></td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('table-wrap').innerHTML=html;
+
+  document.getElementById('btn-run').disabled=TODO.length===0;
+}
+
+document.getElementById('btn-run').addEventListener('click',async()=>{
+  const btn=document.getElementById('btn-run');btn.disabled=true;
+  document.getElementById('log').innerHTML='';
+  log('Gravando '+TODO.length+' admissão(ões) no histórico...','log-info');
+  try{
+    const res=await fetch(BASE+'/api/employees/log/backfill',{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
+      body:JSON.stringify({entries:TODO})});
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.error||'erro');
+    log('Concluído: '+d.added+' registrada(s), '+d.skipped+' ignorada(s).','log-ok');
+    log('Abra o VPoint em RH Geral e gere o relatório de movimentação sem filtro de data para conferir.','log-info');
+    if(SEMDATA.length)log('Atenção: '+SEMDATA.length+' pessoa(s) ficaram de fora por não terem data de admissão no RH Geral.','log-err');
+  }catch(e){log('ERRO: '+e.message,'log-err');btn.disabled=false}
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar CPF e RG dos Colaboradores — VPoint</title>
+<style>
+:root{--dark:#111827;--gray:#374151;--muted:#6B7280;--gold:#B8860B;--bg:#F3F4F6;--border:#E5E7EB;--border-dark:#D1D5DB;--err:#DC2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--dark);padding:28px;font-size:14px}
+.wrap{max-width:1150px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:22px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input,select{width:100%;padding:9px 12px;border:1px solid var(--border-dark);border-radius:5px;font-size:14px;font-family:inherit;background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+.row{display:flex;gap:12px}.row>div{flex:1}
+button{background:var(--dark);color:#fff;border:none;padding:11px 20px;border-radius:5px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px}
+button:hover{background:#000}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary{background:#fff;color:var(--dark);border:1px solid var(--border-dark)}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{background:#F9FAFB;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+td select{padding:5px 8px;font-size:12px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.tag-ok{background:#DCFCE7;color:#15803D}
+.tag-warn{background:#FEF3C7;color:#B45309}
+.tag-skip{background:#F3F4F6;color:var(--muted)}
+#log{background:#0F172A;color:#D1D5DB;padding:14px;border-radius:6px;font-family:monospace;font-size:12px;max-height:260px;overflow-y:auto;white-space:pre-wrap;margin-top:14px;display:none}
+.log-ok{color:#4ADE80}.log-err{color:#F87171}.log-info{color:#93C5FD}
+.note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:12px 14px;font-size:12.5px;color:#78350F;margin-top:12px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Importar CPF e RG dos Colaboradores</h1>
+  <p class="sub">Preenche CPF, RG e telefone nas fichas do RH Geral. Cargo, admissão, nascimento e endereço não são alterados.</p>
+
+  <div class="card" id="step-login">
+    <h2>1. Entrar no VPoint</h2>
+    <label>Endereço do sistema</label>
+    <input type="text" id="base-url" value="https://fkg-presenca.pages.dev">
+    <div class="row">
+      <div><label>Usuário</label><input type="text" id="user" value="superadmin"></div>
+      <div><label>Senha</label><input type="password" id="pass" placeholder="senha do superadmin"></div>
+    </div>
+    <button id="btn-login">Entrar e carregar colaboradores</button>
+    <div id="login-err" style="color:var(--err);font-size:12.5px;margin-top:10px"></div>
+  </div>
+
+  <div class="card hidden" id="step-review">
+    <h2>2. Conferir antes de importar</h2>
+    <div class="note">Confira a coluna <strong>Colaborador no VPoint</strong>. Onde estiver "não importar", o nome da planilha não bate com nenhum cadastro — escolha manualmente ou deixe de fora.</div>
+    <div id="table-wrap"></div>
+    <button id="btn-import">Importar dados</button>
+    <button class="secondary" onclick="location.reload()">Cancelar</button>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+const PLANILHA=[{"nome":"Antonio Marcos Serafim","cpf":"323.003.658-12","rg":"32.634.988-1","tel":"(11) 97971-9984"},{"nome":"Leila Almeida Marques","cpf":"353.158.488-09","rg":"47.087.721-2","tel":"(11) 98276-2449"},{"nome":"Evelyn Chiogna","cpf":"323.765.748-46","rg":"42.121.093-X","tel":"(11) 98371-5900"},{"nome":"Renata Oliveira de Abreu Simões","cpf":"303.679.088-83","rg":"41.683.380-9","tel":"(11)96936-0676"},{"nome":"Vanessa Aparecida de Moraes","cpf":"148.201.638-92","rg":"27.152.752-3","tel":"(11)96485-1481"},{"nome":"Claudimeire Fernandes Souza","cpf":"006.072.635-04","rg":"39.617.786-4","tel":"(11) 96751-8884"},{"nome":"Francisca Monteiro","cpf":"264.112.548-00","rg":"21.914.126-5","tel":"(11) 97620-6790"},{"nome":"Sasha Mirella dos Santos Silva","cpf":"122.251.334-09","rg":"67.534.387-2","tel":"(11) 98601-6496"},{"nome":"Beatriz Armani","cpf":"437.497.088-60","rg":"37.725.303-0","tel":"(11) 97278-4844"},{"nome":"Luiz Gustavo Garcia","cpf":"416.655.078-02","rg":"37.580.615-5","tel":"(11) 95397-6997"},{"nome":"Vitória Bertocco Franco","cpf":"325.223.668-07","rg":"52.076.445-6","tel":"(14)98175-4772"},{"nome":"Bárbara Vitória Miranda Yassu","cpf":"456.320.378-51","rg":"52.888.109-7","tel":"(11)94204-3890"},{"nome":"Eduardo Gagliano","cpf":"420.861.538-99","rg":"33.543.407-1","tel":"(11) 98923-9321"},{"nome":"Graziela Coelho","cpf":"409.529.388-80","rg":"","tel":""},{"nome":"Verônica Oliveira Corradini","cpf":"356.259.278-71","rg":"41.107.839-2","tel":"(14) 99673-2330"},{"nome":"Anike Taucci","cpf":"517.773.898-10","rg":"53.641.258-3","tel":"(11) 98788-2224"},{"nome":"Mariana Ambrósio","cpf":"364.866.238-45","rg":"39.340.908-9","tel":"(11) 95639-0235"},{"nome":"Vitória Sardeiro","cpf":"470.809.198-27","rg":"54.143.706-9","tel":"(11) 99416-5247"},{"nome":"Luís Felipe Meira Marques Simão","cpf":"319.879.218-52","rg":"55.651.369-1","tel":"(11) 99945-1209"},{"nome":"Luisa Opice","cpf":"229.197.188-35","rg":"34.708.425-4","tel":"(11) 9964-1415"},{"nome":"Rebeca Bizetti","cpf":"484.882.948-83","rg":"50.643.359-6","tel":"(11) 98126-8730"},{"nome":"Mariana Ferro","cpf":"418.848.518-35","rg":"39.423.937-4","tel":"(11) 97566-3040"},{"nome":"Gabriela Ciaramicoli","cpf":"487.101.828-88","rg":"53.675.850-5","tel":"(11) 97523-4000"},{"nome":"Edvânia Cassimiro","cpf":"473.169.948-78","rg":"53.255.731-1","tel":"(11) 95152-3880"},{"nome":"Fernanda Rodrigues","cpf":"414.814.488-11","rg":"52.962.461-8","tel":"(11) 96497-4075"},{"nome":"Rafaela Notarbartolo Di villarosa Farina","cpf":"451.477.148-12","rg":"54.347.660-1","tel":"(11) 99787-1514"},{"nome":"Reynaldo Tufano","cpf":"501.757.328-33","rg":"53.910.306-8","tel":"(11) 99392-9434"},{"nome":"Letícia Miranda Ligeri","cpf":"528.683.988-63","rg":"57.548.704-5","tel":"(11)99379-7925"},{"nome":"Pietra Maciel","cpf":"485.698.738.08","rg":"58.786.571-4","tel":"(12) 99731-0607"},{"nome":"Ana Clara Camargo Domingos","cpf":"515.870.358-20","rg":"52.465.768-3","tel":"(11)94787-0098"},{"nome":"Luiza Baesso Rocha","cpf":"437.201.088-56","rg":"55.096.630-4","tel":"(19)99250-8646"},{"nome":"Ana Clara Freitas Oliveira","cpf":"701.900.174-22","rg":"52.754.585-5","tel":"(11) 96270-6427"},{"nome":"Ana Clara S. Coelho Marques de Carvalho","cpf":"456.700.038-29","rg":"56.538.372-3","tel":"(11) 98843-5343"},{"nome":"Gabriel Ramon Centurion de Camargos","cpf":"400.202.288-99","rg":"37.761.436-1","tel":"(11)94592-1986"},{"nome":"Maria Eduarda de Paschoal","cpf":"571.415.598-09","rg":"53.243.269-1","tel":""},{"nome":"Julia Gusmão Patto","cpf":"499.394.168-05","rg":"50.661.417-7","tel":"(12) 98200-5572"},{"nome":"Leonardo Alves Robeldo","cpf":"396.091.408-31","rg":"54.312.070-3","tel":"(11)98271-8022"},{"nome":"Anna Julia Pereira Thimoteo","cpf":"529.287.708-52","rg":"52.023.625-7","tel":"(11)97144-3458"},{"nome":"Camylli Conceição de Carvalho","cpf":"504.431.808-65","rg":"39.306.566-2","tel":"(11)98304-7542"},{"nome":"Heloisa Santinato Pieruzzi","cpf":"239.804.308-80","rg":"54.880.429-1","tel":"( 11 ) 96520-7404"},{"nome":"Mateus Ribeiro Galeano","cpf":"484.729.848.93","rg":"39.935.326-4","tel":"(12)99629-1208"},{"nome":"Izabella Regina Carvalho Machado","cpf":"469.782.538-33","rg":"58.638.594-0","tel":"(11) 98390-3203"},{"nome":"Maria Eduarda Russo Chacon","cpf":"547.265.958-22","rg":"56.739.982-2","tel":"(11)98150-5973"},{"nome":"Suzanna Rodrigues Novaes","cpf":"504.355.498-39","rg":"57.611.547-2","tel":""},{"nome":"Maria Eduarda Pereira Antunes","cpf":"406.243.098-35","rg":"52.672.619-2","tel":"(16) 99776-2810"},{"nome":"Gustavo Lahuerta Pires","cpf":"533.456.398-90","rg":"52342582X","tel":"(11)93004-7979"},{"nome":"Camila Alves Barbosa","cpf":"500.973.608-05","rg":"60.249.466-7","tel":"(11)97038-2239"},{"nome":"Bruno Tauan Marinho Batista","cpf":"577.311.208-64","rg":"56.743.240-3","tel":"(11) 96647-4132"},{"nome":"Maria Fernanda Montanari Cantarin","cpf":"029.312.671-20","rg":"58.569.881-8","tel":"(17) 98210-8773"},{"nome":"Marina Tavares","cpf":"","rg":"","tel":"(11) 98569-6905"},{"nome":"Cristiano Kozan","cpf":"212.435.838-35","rg":"","tel":""},{"nome":"Raphael Burleigh","cpf":"328.165.258-13","rg":"","tel":""},{"nome":"Marina Falcone","cpf":"357.928.578-57","rg":"","tel":"(11) 99906-7443"},{"nome":"Renata Ambrosio","cpf":"344.733.558-02","rg":"","tel":"(11) 99514-7099"},{"nome":"Marco Vanin Gasparetti","cpf":"287.328.728-44","rg":"","tel":"(11) 98485-3800"},{"nome":"Giovanna Rizzo","cpf":"353.103.818-48","rg":"","tel":"(11) 99977-4699"}];
+
+let TOKEN='',BASE='',INTERNS=[];
+
+function log(msg,cls){
+  const el=document.getElementById('log');
+  el.style.display='block';
+  const d=document.createElement('div');
+  if(cls)d.className=cls;
+  d.textContent=msg;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+function norm(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().match(/[a-z]+/g)||[];
+}
+function similarity(a,b){
+  const A=new Set(norm(a)),B=new Set(norm(b));
+  let common=0;A.forEach(w=>{if(B.has(w))common++});
+  return common/Math.max(1,Math.min(A.size,B.size));
+}
+function bestMatch(nome){
+  let best=null,bestScore=0;
+  for(const it of INTERNS){
+    const sc=similarity(nome,it.person);
+    if(sc>bestScore){bestScore=sc;best=it.person}
+  }
+  return {name:bestScore>=0.5?best:'',score:bestScore};
+}
+function fmt(d){return d?d.split('-').reverse().join('/'):'—'}
+
+document.getElementById('btn-login').addEventListener('click',async()=>{
+  const errEl=document.getElementById('login-err');errEl.textContent='';
+  BASE=document.getElementById('base-url').value.trim().replace(/\/$/,'');
+  const username=document.getElementById('user').value.trim();
+  const password=document.getElementById('pass').value;
+  if(!BASE||!username||!password){errEl.textContent='Preencha endereço, usuário e senha.';return}
+  try{
+    const res=await fetch(BASE+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const data=await res.json();
+    if(!res.ok||!data.token){errEl.textContent=data.error||'Não foi possível entrar.';return}
+    TOKEN=data.token;
+    const r2=await fetch(BASE+'/api/hr/staff',{headers:{Authorization:'Bearer '+TOKEN}});
+    const d2=await r2.json();
+    if(!r2.ok){errEl.textContent=d2.error||'Não foi possível carregar os colaboradores.';return}
+    INTERNS=d2;
+    document.getElementById('step-login').classList.add('hidden');
+    document.getElementById('step-review').classList.remove('hidden');
+    renderTable();
+  }catch(e){errEl.textContent='Erro de conexão: '+e.message}
+});
+
+function renderTable(){
+  const opts=INTERNS.map(i=>i.person).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  let html='<table><thead><tr><th>Nome na planilha</th><th>Colaborador no VPoint</th><th>CPF</th><th>RG</th><th>Telefone</th></tr></thead><tbody>';
+  PLANILHA.forEach((p,idx)=>{
+    const m=bestMatch(p.nome);
+    const sel='<select data-idx="'+idx+'" class="match-sel"><option value="">— não importar —</option>'+
+      opts.map(o=>'<option value="'+o.replace(/"/g,'&quot;')+'"'+(o===m.name?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+    const tag=m.name?(m.score>=0.7?'<span class="tag tag-ok">auto</span>':'<span class="tag tag-warn">conferir</span>'):'<span class="tag tag-skip">sem par</span>';
+    html+='<tr><td>'+p.nome+' '+tag+'</td><td>'+sel+'</td><td style="font-size:11.5px">'+(p.cpf||'—')+'</td><td style="font-size:11.5px">'+(p.rg||'—')+'</td><td style="font-size:11.5px">'+(p.tel||'—')+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('table-wrap').innerHTML=html;
+}
+
+document.getElementById('btn-import').addEventListener('click',async()=>{
+  const btn=document.getElementById('btn-import');btn.disabled=true;
+  document.getElementById('log').innerHTML='';
+  let ok=0,skip=0,fail=0;
+  log('Iniciando importação...','log-info');
+  for(const sel of [...document.querySelectorAll('.match-sel')]){
+    const p=PLANILHA[Number(sel.dataset.idx)];
+    const person=sel.value;
+    if(!person){log('- pulado: '+p.nome);skip++;continue}
+    const cur=INTERNS.find(i=>i.person===person)||{};
+    // preserva tudo que já existe; só sobrescreve o que veio da planilha
+    const body={
+      role:cur.role||'',birth_date:cur.birth_date||'',admission_date:cur.admission_date||'',
+      cep:cur.cep||'',street:cur.street||'',number:cur.number||'',
+      complement:cur.complement||'',district:cur.district||'',city:cur.city||'',state:cur.state||'',
+      cpf:p.cpf||cur.cpf||'',
+      rg:p.rg||cur.rg||'',
+      phone:p.tel||cur.phone||''
+    };
+    try{
+      const res=await fetch(BASE+'/api/hr/staff/'+encodeURIComponent(person),{
+        method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN},
+        body:JSON.stringify(body)});
+      const d=await res.json();
+      if(!res.ok)throw new Error(d.error||'erro');
+      log('OK   -> '+person,'log-ok');ok++;
+    }catch(e){log('ERRO -> '+person+': '+e.message,'log-err');fail++}
+  }
+  log('');
+  log('Concluído: '+ok+' importado(s), '+skip+' pulado(s), '+fail+' com erro.',fail?'log-err':'log-ok');
+  log('Abra o VPoint em RH Geral para conferir.','log-info');
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>
