@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saída dos módulos Compras e Sisjuri — VPoint</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;background:#F1F1F1;color:#191919;
+  padding:28px 16px;line-height:1.6}
+.box{max-width:620px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;
+  box-shadow:0 2px 20px rgba(0,0,0,.08)}
+.topo{background:#333;color:#fff;padding:18px 24px}
+.topo h1{font-size:17px;font-weight:700}
+.topo p{font-size:12.5px;opacity:.7;margin-top:3px}
+.corpo{padding:24px}
+.passo{border:1px solid #E6E6E6;border-radius:8px;padding:18px;margin-bottom:14px}
+.passo h2{font-size:14px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:9px}
+.n{width:24px;height:24px;border-radius:50%;background:#333;color:#fff;font-size:12px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.passo p{font-size:13px;color:#5E5E5E;margin-bottom:12px}
+label{display:block;font-size:11px;font-weight:700;color:#8A8A8A;text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:5px}
+input{width:100%;padding:10px 12px;border:1px solid #D4D4D4;border-radius:6px;font-size:14px;
+  font-family:inherit;margin-bottom:12px}
+button{background:#333;color:#fff;border:none;padding:11px 20px;border-radius:6px;font-size:14px;
+  font-weight:600;cursor:pointer;font-family:inherit}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.perigo{background:#B91C1C}
+.aviso{background:#FEF2F2;border-left:3px solid #B91C1C;border-radius:6px;padding:12px 14px;
+  font-size:13px;margin-bottom:14px}
+.ok{background:#F0FDF4;border-left:3px solid #15803D;border-radius:6px;padding:12px 14px;
+  font-size:13px;margin-bottom:14px}
+.msg{font-size:13px;margin-top:10px;min-height:20px}
+.resumo{font-size:12.5px;background:#FAFAFA;border-radius:6px;padding:12px 14px;margin-top:10px;
+  font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;display:none}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="topo">
+    <h1>Saída dos módulos Compras e Relatórios Sisjuri</h1>
+    <p>Página de uso único · precisa de login de superadmin</p>
+  </div>
+  <div class="corpo">
+    <div class="aviso">
+      <strong>Leia antes:</strong> o passo 3 apaga para sempre os pedidos, fornecedores e catálogo de
+      Compras e todos os extratos, lançamentos, regras e PDFs do Sisjuri. Não existe desfazer —
+      nem pela lixeira do VPoint.
+    </div>
+
+    <div class="passo">
+      <h2><span class="n">1</span> Entrar</h2>
+      <p>Use o login de superadmin do VPoint.</p>
+      <label>Endereço do VPoint</label>
+      <input id="url" value="https://vpoint.app.br">
+      <label>Usuário</label>
+      <input id="user" placeholder="superadmin">
+      <label>Senha</label>
+      <input id="pass" type="password">
+      <button onclick="entrar()">Entrar</button>
+      <div class="msg" id="m1"></div>
+    </div>
+
+    <div class="passo">
+      <h2><span class="n">2</span> Baixar o backup</h2>
+      <p>Um arquivo com tudo: pedidos, fornecedores, produtos, extratos, lançamentos, regras
+         e os PDFs dos extratos. Guarde-o antes de seguir.</p>
+      <button id="b2" onclick="baixar()" disabled>Baixar backup</button>
+      <div class="msg" id="m2"></div>
+      <div class="resumo" id="r2"></div>
+    </div>
+
+    <div class="passo">
+      <h2><span class="n">3</span> Apagar os dados</h2>
+      <p>Para confirmar, digite <strong>APAGAR</strong> no campo abaixo.</p>
+      <label>Confirmação</label>
+      <input id="conf" placeholder="APAGAR" autocomplete="off">
+      <button class="perigo" id="b3" onclick="apagar()" disabled>Apagar definitivamente</button>
+      <div class="msg" id="m3"></div>
+    </div>
+  </div>
+</div>
+<script>
+let token='';
+const $=id=>document.getElementById(id);
+const base=()=>$('url').value.replace(/\/+$/,'');
+function diz(id,txt,cor){$(id).textContent=txt;$(id).style.color=cor||'#5E5E5E'}
+
+async function entrar(){
+  diz('m1','Entrando...');
+  try{
+    const r=await fetch(base()+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:$('user').value,password:$('pass').value})});
+    const d=await r.json();
+    if(!r.ok||!d.token)throw new Error(d.error||'Usuário ou senha incorretos.');
+    if(d.role!=='superadmin')throw new Error('Este login não é superadmin.');
+    token=d.token;
+    diz('m1','Conectado como '+d.name+'.','#15803D');
+    $('b2').disabled=false;
+  }catch(e){diz('m1',e.message,'#B91C1C')}
+}
+
+async function baixar(){
+  diz('m2','Montando o backup... pode demorar, os PDFs vão junto.');
+  try{
+    const r=await fetch(base()+'/api/baixa-modulos/backup',{headers:{Authorization:'Bearer '+token}});
+    if(!r.ok)throw new Error('Falha ao gerar o backup.');
+    const texto=await r.text();
+    const d=JSON.parse(texto);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([texto],{type:'application/json'}));
+    a.download='vpoint-backup-compras-sisjuri-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    const s=d.resumo||{};
+    $('r2').style.display='block';
+    $('r2').textContent=
+      'pedidos de compra ....... '+(s.pedidos||0)+'\n'+
+      'fornecedores ............ '+(s.fornecedores||0)+'\n'+
+      'produtos do catálogo .... '+(s.produtos||0)+'\n'+
+      'extratos do Sisjuri ..... '+(s.extratos||0)+'\n'+
+      'lançamentos ............. '+(s.lancamentos||0)+'\n'+
+      'PDFs de extrato ......... '+(s.pdfs||0)+'\n'+
+      'tamanho ................. '+(texto.length/1048576).toFixed(2)+' MB';
+    diz('m2','Backup baixado. Confira o arquivo antes de apagar.','#15803D');
+    $('b3').disabled=false;
+  }catch(e){diz('m2',e.message,'#B91C1C')}
+}
+
+async function apagar(){
+  if($('conf').value.trim()!=='APAGAR'){diz('m3','Digite APAGAR para confirmar.','#B91C1C');return}
+  if(!confirm('Apagar definitivamente os dados de Compras e Relatórios Sisjuri?\n\nNão tem desfazer.'))return;
+  diz('m3','Apagando...');
+  try{
+    const r=await fetch(base()+'/api/baixa-modulos/apagar',{method:'POST',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({confirmar:'APAGAR'})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Falha ao apagar.');
+    diz('m3',d.apagadas+' registro(s) e '+d.arquivos+' arquivo(s) apagados. Pode fechar esta página.','#15803D');
+    $('b3').disabled=true;
+  }catch(e){diz('m3',e.message,'#B91C1C')}
+}
+</script>
+</body>
+</html>

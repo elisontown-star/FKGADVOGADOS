@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sem conexão — VPoint</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#333333;color:#fff;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center}
+.box{max-width:340px}
+img{width:150px;margin-bottom:28px;opacity:.9}
+h1{font-size:19px;font-weight:700;margin-bottom:10px}
+p{font-size:14px;line-height:1.7;color:rgba(255,255,255,.7);margin-bottom:24px}
+button{background:#fff;color:#333;border:none;padding:13px 26px;border-radius:6px;
+  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+button:active{opacity:.85}
+small{display:block;margin-top:22px;font-size:11.5px;color:rgba(255,255,255,.4);line-height:1.7}
+</style>
+</head>
+<body>
+  <div class="box">
+    <img src="/icon-512.png" alt="VPoint">
+    <h1>Sem conexão</h1>
+    <p>O VPoint precisa de internet para funcionar. Confira o Wi-Fi ou os dados móveis e tente de novo.</p>
+    <button onclick="location.reload()">Tentar novamente</button>
+    <small>Nada fica guardado no aparelho — por isso o sistema não abre offline.</small>
+  </div>
+</body>
+</html>

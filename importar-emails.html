@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importar e-mails corporativos — VPoint</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;background:#F1F1F1;color:#191919;
+  padding:26px 14px;line-height:1.6}
+.box{max-width:900px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;
+  box-shadow:0 2px 20px rgba(0,0,0,.08)}
+.topo{background:#333;color:#fff;padding:18px 24px}
+.topo h1{font-size:17px;font-weight:700}
+.topo p{font-size:12.5px;opacity:.7;margin-top:3px}
+.corpo{padding:22px 24px}
+.passo{border:1px solid #E6E6E6;border-radius:8px;padding:16px 18px;margin-bottom:14px}
+.passo h2{font-size:14px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:9px}
+.n{width:23px;height:23px;border-radius:50%;background:#333;color:#fff;font-size:12px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+label{display:block;font-size:11px;font-weight:700;color:#8A8A8A;text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:5px}
+input[type=text],input[type=password]{width:100%;padding:9px 11px;border:1px solid #D4D4D4;
+  border-radius:6px;font-size:14px;font-family:inherit;margin-bottom:11px}
+button{background:#333;color:#fff;border:none;padding:10px 18px;border-radius:6px;font-size:13.5px;
+  font-weight:600;cursor:pointer;font-family:inherit}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.claro{background:#fff;color:#333;border:1px solid #D4D4D4}
+.msg{font-size:13px;margin-top:9px;min-height:19px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+th{background:#FAFAFA;text-align:left;padding:7px 9px;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.4px;color:#8A8A8A;border-bottom:1px solid #E6E6E6;position:sticky;top:0}
+td{padding:6px 9px;border-bottom:1px solid #F2F2F2;vertical-align:middle}
+select{width:100%;padding:5px 7px;border:1px solid #D4D4D4;border-radius:5px;font-size:12.5px;font-family:inherit}
+.rolar{max-height:420px;overflow:auto;border:1px solid #E6E6E6;border-radius:7px}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.ok{background:#F0FDF4;color:#15803D}
+.quase{background:#FFFBEB;color:#B45309}
+.nao{background:#FEF2F2;color:#B91C1C}
+.resumo{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.card{flex:1;min-width:120px;background:#FAFAFA;border:1px solid #ECECEC;border-radius:7px;
+  padding:11px 13px;text-align:center}
+.card strong{display:block;font-size:20px;font-weight:700}
+.card span{font-size:11px;color:#8A8A8A}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="topo">
+    <h1>Importar e-mails corporativos</h1>
+    <p>54 endereços · confira o que casou antes de gravar</p>
+  </div>
+  <div class="corpo">
+
+    <div class="passo">
+      <h2><span class="n">1</span> Entrar</h2>
+      <label>Endereço do VPoint</label>
+      <input type="text" id="url" value="https://vpoint.app.br">
+      <label>Usuário</label>
+      <input type="text" id="user" placeholder="superadmin">
+      <label>Senha</label>
+      <input type="password" id="pass">
+      <button onclick="entrar()">Entrar</button>
+      <div class="msg" id="m1"></div>
+    </div>
+
+    <div class="passo">
+      <h2><span class="n">2</span> Conferir o casamento dos nomes</h2>
+      <p style="font-size:13px;color:#5E5E5E;margin-bottom:10px">
+        Os nomes da lista nem sempre são idênticos aos cadastrados. O que ficar em
+        <strong>amarelo</strong> ou <strong>vermelho</strong> merece sua conferência — dá para corrigir
+        na própria linha, ou deixar em branco para pular.
+      </p>
+      <button id="b2" onclick="casar()" disabled>Comparar com o cadastro</button>
+      <div class="msg" id="m2"></div>
+      <div id="resumo" class="resumo" style="display:none"></div>
+      <div id="tabela"></div>
+    </div>
+
+    <div class="passo">
+      <h2><span class="n">3</span> Gravar</h2>
+      <p style="font-size:13px;color:#5E5E5E;margin-bottom:10px">
+        Grava apenas o campo de e-mail de cada ficha. O resto do cadastro não é tocado.
+      </p>
+      <button id="b3" onclick="gravar()" disabled>Gravar e-mails</button>
+      <div class="msg" id="m3"></div>
+    </div>
+
+  </div>
+</div>
+<script>
+const LISTA=[
+  {nome:"Ana Clara Carvalho",email:"ana.carvalho@fkgadv.com.br"},
+  {nome:"Ana Clara Domingos",email:"ana.domingos@fkgadv.com.br"},
+  {nome:"Ana Clara Freitas Oliveira",email:"ana.oliveira@fkgadv.com.br"},
+  {nome:"Anike Taucci",email:"anike.taucci@fkgadv.com.br"},
+  {nome:"Anna Thimoteo",email:"anna.thimoteo@fkgadv.com.br"},
+  {nome:"Bárbara Yassu",email:"barbara.yassu@fkgadv.com.br"},
+  {nome:"Beatriz Armani",email:"beatriz.armani@fkgadv.com.br"},
+  {nome:"Bruno Batista",email:"bruno.batista@fkgadv.com.br"},
+  {nome:"Camila Alves Barbosa",email:"camila.barbosa@fkgadv.com.br"},
+  {nome:"Camylli Conceição de Carvalho",email:"camylli.carvalho@fkgadv.com.br"},
+  {nome:"Carlos Forbes",email:"carlos.forbes@fkgadv.com.br"},
+  {nome:"Cristiano Kozan",email:"cristiano.kozan@fkgadv.com.br"},
+  {nome:"Eduardo Gagliano",email:"eduardo.gagliano@fkgadv.com.br"},
+  {nome:"Edvânia Cassimiro",email:"edvania.cassimiro@fkgadv.com.br"},
+  {nome:"Evelyn Chiogna",email:"evelyn.chiogna@fkgadv.com.br"},
+  {nome:"Fernanda Rodrigues",email:"fernanda.rodrigues@fkgadv.com.br"},
+  {nome:"Gabriela Ciaramicoli",email:"gabriela.ciaramicoli@fkgadv.com.br"},
+  {nome:"Giovanna Rizzo",email:"giovanna.rizzo@fkgadv.com.br"},
+  {nome:"Graziela Coelho",email:"graziela.coelho@fkgadv.com.br"},
+  {nome:"Gustavo Lahuerta Pires",email:"gustavo.pires@fkgadv.com.br"},
+  {nome:"Heloisa Pieruzzi",email:"heloisa.pieruzzi@fkgadv.com.br"},
+  {nome:"Izabella Machado",email:"izabella.machado@fkgadv.com.br"},
+  {nome:"Júlia Gusmão Patto",email:"julia.patto@fkgadv.com.br"},
+  {nome:"Leila Almeida Marques",email:"leila.almeida@fkgadv.com.br"},
+  {nome:"Leonardo Alves Robeldo",email:"leonardo.robeldo@fkgadv.com.br"},
+  {nome:"Leticia Miranda Ligeri",email:"leticia.ligeri@fkgadv.com.br"},
+  {nome:"Letícia Silva",email:"leticia.silva@fkgadv.com.br"},
+  {nome:"Luís Simão",email:"luis.simao@fkgadv.com.br"},
+  {nome:"Luisa Opice",email:"luisa.opice@fkgadv.com.br"},
+  {nome:"Luiz Gustavo Garcia",email:"luiz.garcia@fkgadv.com.br"},
+  {nome:"Luiza Baesso Rocha",email:"luiza.rocha@fkgadv.com.br"},
+  {nome:"Marco Gasparetti",email:"marco.gasparetti@fkgadv.com.br"},
+  {nome:"Marcos Serafim",email:"marcos.serafim@fkgadv.com.br"},
+  {nome:"Maria Eduarda Chacon",email:"maria.chacon@fkgadv.com.br"},
+  {nome:"Maria Eduarda de Paschoal",email:"maria.paschoal@fkgadv.com.br"},
+  {nome:"Maria Fernanda Cantarin",email:"maria.cantarin@fkgadv.com.br"},
+  {nome:"Mariana Ambrósio",email:"mariana.ambrosio@fkgadv.com.br"},
+  {nome:"Mariana Ferro",email:"mariana.ferro@fkgadv.com.br"},
+  {nome:"Marina Falcone",email:"marina.falcone@fkgadv.com.br"},
+  {nome:"Marina Tavares",email:"marina.tavares@fkgadv.com.br"},
+  {nome:"Mateus Ribeiro Galeano",email:"mateus.galeano@fkgadv.com.br"},
+  {nome:"Pietra Maciel",email:"pietra.maciel@fkgadv.com.br"},
+  {nome:"Rafaela Notarbartolo Farina",email:"rafaela.farina@fkgadv.com.br"},
+  {nome:"Raphael Burleigh",email:"raphael.burleigh@fkgadv.com.br"},
+  {nome:"Rebeca Bizetti",email:"rebeca.bizetti@fkgadv.com.br"},
+  {nome:"Renata Ambrosio",email:"renata.ambrosio@fkgadv.com.br"},
+  {nome:"Renata Simões",email:"renata.simoes@fkgadv.com.br"},
+  {nome:"Reynaldo Tufano",email:"reynaldo.tufano@fkgadv.com.br"},
+  {nome:"Sasha Santos",email:"sasha.silva@fkgadv.com.br"},
+  {nome:"Suzanna Rodrigues Novaes",email:"suzanna.novaes@fkgadv.com.br"},
+  {nome:"Vanessa Moraes",email:"vanessa.moraes@fkgadv.com.br"},
+  {nome:"Verônica Oliveira Corradini",email:"veronica.corradini@fkgadv.com.br"},
+  {nome:"Vitória Franco",email:"vitoria.franco@fkgadv.com.br"},
+  {nome:"Vitória Sardeiro",email:"vitoria.sardeiro@fkgadv.com.br"}
+];
+
+let token='', pessoas=[], casado=[];
+const $=id=>document.getElementById(id);
+const base=()=>$('url').value.replace(/\/+$/,'');
+const diz=(id,t,c)=>{$(id).textContent=t;$(id).style.color=c||'#5E5E5E'};
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Mesma normalização usada no resto do sistema: sem acento, sem pontuação,
+// tudo minúsculo. É o que permite casar "Verônica" com "Veronica".
+const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+// Preposições não ajudam a identificar ninguém.
+const PART=new Set(['de','da','do','das','dos','e']);
+const toks=t=>norm(t).split(' ').filter(x=>x&&!PART.has(x));
+
+async function entrar(){
+  diz('m1','Entrando...');
+  try{
+    const r=await fetch(base()+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:$('user').value,password:$('pass').value})});
+    const d=await r.json();
+    if(!r.ok||!d.token)throw new Error(d.error||'Usuário ou senha incorretos.');
+    token=d.token;
+    diz('m1','Conectado como '+d.name+'.','#15803D');
+    $('b2').disabled=false;
+  }catch(e){diz('m1',e.message,'#B91C1C')}
+}
+
+async function casar(){
+  diz('m2','Buscando o cadastro...');
+  try{
+    const r=await fetch(base()+'/api/hr/staff',{headers:{Authorization:'Bearer '+token}});
+    if(!r.ok)throw new Error('Não foi possível ler o cadastro.');
+    pessoas=await r.json();
+  }catch(e){diz('m2',e.message,'#B91C1C');return}
+
+  casado=LISTA.map(item=>{
+    const alvo=toks(item.nome);
+    // o próprio endereço carrega nome.sobrenome, que ajuda a desempatar
+    const doEmail=toks(item.email.split('@')[0].replace(/\./g,' '));
+    let melhor=null, nota=0, empate=false;
+    for(const p of pessoas){
+      const cad=toks(p.person);
+      if(!cad.length)continue;
+      let n=0;
+      if(norm(p.person)===norm(item.nome))n=100;
+      else{
+        const comuns=alvo.filter(t=>cad.includes(t)).length;
+        // todos os termos da lista aparecem no cadastro (ou o contrário)
+        if(comuns===alvo.length||comuns===cad.length)n=80+comuns;
+        else if(comuns>=2)n=50+comuns;
+        else if(comuns===1)n=20;
+        // primeiro e último nome do e-mail batendo é sinal forte
+        const bateEmail=doEmail.every(t=>cad.includes(t));
+        if(bateEmail)n+=25;
+        if(cad[0]===alvo[0])n+=5;
+      }
+      if(n>nota){nota=n;melhor=p;empate=false}
+      else if(n===nota&&n>0&&melhor&&melhor.person!==p.person)empate=true;
+    }
+    const sit=nota>=100?'exato':(nota>=80&&!empate?'bom':(nota>=40?'duvida':'nao'));
+    return {...item,escolhido:(sit==='nao')?'':(melhor?melhor.person:''),sit,nota};
+  });
+
+  const c=s=>casado.filter(x=>x.sit===s).length;
+  $('resumo').style.display='flex';
+  $('resumo').innerHTML=
+    '<div class="card"><strong style="color:#15803D">'+(c('exato')+c('bom'))+'</strong><span>casaram</span></div>'+
+    '<div class="card"><strong style="color:#B45309">'+c('duvida')+'</strong><span>para conferir</span></div>'+
+    '<div class="card"><strong style="color:#B91C1C">'+c('nao')+'</strong><span>sem correspondência</span></div>'+
+    '<div class="card"><strong>'+pessoas.filter(p=>!casado.some(x=>x.escolhido===p.person)).length+'</strong><span>no cadastro, sem e-mail nesta lista</span></div>';
+
+  const opcoes=p=>'<option value="">— não gravar —</option>'+
+    pessoas.map(x=>'<option value="'+esc(x.person)+'"'+(x.person===p?' selected':'')+'>'+
+      esc(x.person)+' · '+esc(x.team)+'</option>').join('');
+  $('tabela').innerHTML='<div class="rolar"><table><thead><tr>'+
+    '<th style="width:30px"></th><th>Nome na lista</th><th>E-mail</th><th style="width:38%">Colaborador no cadastro</th></tr></thead><tbody>'+
+    casado.map((x,i)=>{
+      const tag=x.sit==='exato'?'<span class="tag ok">exato</span>'
+        :x.sit==='bom'?'<span class="tag ok">casou</span>'
+        :x.sit==='duvida'?'<span class="tag quase">confira</span>'
+        :'<span class="tag nao">sem par</span>';
+      return '<tr><td><input type="checkbox" class="ch" data-i="'+i+'"'+(x.escolhido?' checked':'')+'></td>'+
+        '<td>'+esc(x.nome)+'<br>'+tag+'</td>'+
+        '<td style="font-size:11.5px;color:#5E5E5E">'+esc(x.email)+'</td>'+
+        '<td><select data-i="'+i+'" onchange="trocar(this)">'+opcoes(x.escolhido)+'</select></td></tr>';
+    }).join('')+'</tbody></table></div>';
+  diz('m2','Confira as linhas amarelas e vermelhas antes de gravar.','#5E5E5E');
+  $('b3').disabled=false;
+}
+
+function trocar(sel){
+  const i=Number(sel.dataset.i);
+  casado[i].escolhido=sel.value;
+  const ch=document.querySelector('.ch[data-i="'+i+'"]');
+  if(ch)ch.checked=!!sel.value;
+}
+
+async function gravar(){
+  const mapa={};
+  document.querySelectorAll('.ch:checked').forEach(ch=>{
+    const x=casado[Number(ch.dataset.i)];
+    if(x&&x.escolhido)mapa[x.escolhido]=x.email;
+  });
+  const n=Object.keys(mapa).length;
+  if(!n){diz('m3','Nenhuma linha marcada.','#B91C1C');return}
+  if(!confirm('Gravar o e-mail de '+n+' colaborador(es)?'))return;
+  diz('m3','Gravando...');
+  try{
+    const r=await fetch(base()+'/api/hr/staff/emails',{method:'POST',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({mapa})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Falha ao gravar.');
+    let t=d.gravados.length+' e-mail(s) gravado(s).';
+    if(d.ignorados.length)t+=' Ignorados (não estão no cadastro): '+d.ignorados.join(', ')+'.';
+    diz('m3',t,'#15803D');
+    $('b3').disabled=true;
+  }catch(e){diz('m3',e.message,'#B91C1C')}
+}
+</script>
+</body>
+</html>

@@ -5,3 +5,18 @@ pages_build_output_dir = "."
 [[kv_namespaces]]
 binding = "ATTENDANCE"
 id = "ab4065ada3bb4d15a20c1db54ac6ff60"
+
+# Arquivos (fotos, documentos do RH, imagens de comunicado e, adiante, a folha
+# de pagamento). O R2 tem 10 GB no plano gratuito e não cobra saída de dados.
+# Enquanto este binding não existir no projeto, o sistema continua gravando
+# tudo no KV — nada quebra.
+[[r2_buckets]]
+binding = "ARQUIVOS"
+bucket_name = "vpoint-arquivos"
+
+# Token das tarefas automáticas (cron-job.org). Fica aqui e não no painel
+# porque, com wrangler.toml no projeto, a Cloudflare trata este arquivo como
+# fonte da verdade e deixa as variáveis somente leitura no dashboard.
+# Para trocar o token: altere abaixo, publique, e ajuste o header do job.
+[vars]
+CRON_TOKEN = "vpoint-cron-312e92a0e4e5b2fef5930028b7bc03b41fe2dbc9"
