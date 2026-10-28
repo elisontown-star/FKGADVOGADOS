@@ -2981,7 +2981,7 @@ function lembrarView(view){
 // removido ou uma permissão retirada não podem deixar o sistema em branco.
 function viewPermitida(view){
   if(!view||!VIEW_TITLES[view])return false;
-  if(ehExterno()&&VIEWS_INTERNAS.includes(view))return false;
+  if(ehExterno()&&!VIEWS_EXTERNAS.includes(view))return false;
   if(!document.getElementById('view-'+view))return false;
   const item=document.querySelector('.nav-item[data-view="'+view+'"]');
   if(!item)return false;
@@ -6457,16 +6457,26 @@ async function sincronizarPermissoes(){
   }catch(e){}
 }
 
-// Quem é de fora só vê o que foi liberado. As telas comuns do escritório
-// (presença, relatório, férias, colaboradores e configurações) somem, porque
-// para ele não existem — e o servidor as recusa de qualquer forma.
+// Quem é de fora só vê o que foi liberado. A lista abaixo não diz o que
+// esconder, e sim o que pode aparecer: qualquer tela nova que entre no sistema
+// amanhã já nasce invisível para ele, sem ninguém precisar lembrar de barrá-la.
 function ehExterno(){
   return localStorage.getItem('fkg_role')!=='superadmin'&&localStorage.getItem('fkg_externo')==='1';
 }
-const VIEWS_INTERNAS=['dashboard','attendance','report','employees','ferias','settings'];
+const VIEWS_EXTERNAS=['contabilidade','medica'];
+
+// Telas que todo mundo de dentro enxerga. Ficam listadas aqui porque o corte do
+// acesso externo apaga o menu inteiro, e ele precisa saber o que repor caso a
+// marcação seja retirada depois sem recarregar a página.
+const VIEWS_BASE=['dashboard','attendance','report','ferias','employees','settings'];
 
 function applyRoleUI(){
   const role=localStorage.getItem('fkg_role')||'user';
+  VIEWS_BASE.forEach(v=>{
+    const b=document.querySelector('.nav-item[data-view="'+v+'"]');
+    if(b)b.style.display='flex';
+  });
+  document.querySelectorAll('.nav-sep').forEach(el=>el.style.display='');
   const name=localStorage.getItem('fkg_name')||'';
   const hrAccess=role==='superadmin'||localStorage.getItem('fkg_hr_access')==='1';
   const section=document.getElementById('users-section');
@@ -6508,10 +6518,14 @@ function applyRoleUI(){
   ajustarSeparadores();
   // o corte do acesso externo vem por último, para valer sobre o resto
   if(ehExterno()){
-    VIEWS_INTERNAS.forEach(v=>{
-      const b=document.querySelector('.nav-item[data-view="'+v+'"]');
-      if(b)b.style.display='none';
+    document.querySelectorAll('.nav-item[data-view]').forEach(b=>{
+      const liberada=VIEWS_EXTERNAS.includes(b.dataset.view)&&
+        (b.dataset.view!=='contabilidade'||contAccess)&&
+        (b.dataset.view!=='medica'||medAccess);
+      b.style.display=liberada?'flex':'none';
     });
+    // o que não tem data-view (atalhos soltos no menu) também sai
+    document.querySelectorAll('.nav-item:not([data-view])').forEach(el=>el.style.display='none');
     document.querySelectorAll('.nav-sep').forEach(el=>el.style.display='none');
     const rl=document.getElementById('user-role-text');
     if(rl)rl.textContent='Externo';
